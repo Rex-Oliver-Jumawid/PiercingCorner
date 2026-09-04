@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 import type { Database } from '../../types/database'
 
@@ -6,6 +7,8 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey)
+
+let browserClient: SupabaseClient<Database> | undefined
 
 /**
  * Creates the configured browser client on demand.
@@ -21,5 +24,7 @@ export function getSupabaseClient() {
     )
   }
 
-  return createClient<Database>(supabaseUrl, supabaseAnonKey)
+  browserClient ??= createClient<Database>(supabaseUrl, supabaseAnonKey)
+
+  return browserClient
 }

@@ -4,16 +4,16 @@ PiercingCorner is a management system for a piercing studio in Parañaque.
 
 ## Current implementation status
 
-**Phase 0B — Database contract + RLS foundation**
+**Phase 1A — Staff authentication + route authorization**
 
-Implemented: the Phase 0A frontend scaffold plus migration-driven PostgreSQL
-schema, generated Supabase database types, and Row Level Security policies for
-the closed Owner/Staff access model.
+Implemented: the Phase 0A frontend scaffold, migration-driven PostgreSQL schema,
+generated Supabase database types, Row Level Security policies, email/password
+staff Login, active-account resolution, authenticated session restoration, and
+Owner/Staff route guards for the closed access model.
 
-Deliberately not implemented: production login/session handling, route guards,
-client/catalog CRUD, transaction workflow/finalization RPC, signatures/PDFs,
-Storage uploads, dashboard metrics, reports, final navigation, and final
-responsive design.
+Deliberately not implemented: Google OAuth, public booking, client/catalog CRUD,
+transaction workflow/finalization RPC, signatures/PDFs, Storage uploads,
+dashboard metrics, reports, and the final application-shell design.
 
 ## Stack
 
@@ -51,10 +51,10 @@ VITE_SUPABASE_URL=
 VITE_SUPABASE_ANON_KEY=
 ```
 
-Do not commit `.env` files or real credentials. The Phase 0A placeholders work
-without these variables. Future backend-dependent code must access Supabase via
-`getSupabaseClient()`, which throws a clear configuration error if either value
-is absent.
+Do not commit `.env` files or real credentials. The Login page renders without
+these variables and presents a safe user-facing error if sign-in is attempted.
+Backend-dependent code accesses Supabase through `getSupabaseClient()`, which
+throws a clear development error if either value is absent.
 
 ## Local database
 
@@ -73,7 +73,8 @@ supabase gen types typescript --local
 ```
 
 See [the database contract](docs/database.md) for the schema, RLS matrix, and
-deferred workflow hardening.
+deferred workflow hardening. See [Phase 1A](docs/phase-1a.md) for the Login and
+route-authorization acceptance checklist.
 
 ## Architecture
 
@@ -91,9 +92,8 @@ deferred workflow hardening.
 Access roles are intentionally limited to `owner` and `staff`. Piercer is not an
 access role; it will be modeled separately as a studio/service qualification.
 
-## Next: proposed Phase 1
+## Next
 
-Implement Supabase Auth session handling and route authorization, enforcing
-Owner access to all approved routes and Staff access to Dashboard and Clients
-only. Do not begin catalog CRUD or the transaction workflow until that boundary
-is reviewed.
+Review Phase 1A against a configured Supabase project, then begin catalog CRUD.
+Do not begin the transaction workflow until the authentication boundary and
+catalog behavior have been reviewed.
