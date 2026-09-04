@@ -1,0 +1,11 @@
+node_modules
+dist
+.DS_Store
+
+# Local environment configuration. Keep the documented example committed.
+.env
+.env.*
+!.env.example
+
+.context
+.model
