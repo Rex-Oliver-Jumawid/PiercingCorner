@@ -1,15 +1,49 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,650;9..144,700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&display=swap");
 @import "tailwindcss";
 
+@theme inline {
+  --font-body: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces", Georgia, serif;
+  --font-sans: var(--font-body);
+
+  --color-ochre: #cf861d;
+  --color-ochre-deep: #9e5c11;
+  --color-seafoam: #86bcb0;
+  --color-seafoam-dark: #315e55;
+  --color-cream: #fff8e8;
+  --color-paper: #fffdf7;
+  --color-marigold: #f0bd32;
+  --color-espresso: #30231f;
+  --color-studio-muted: #756861;
+  --color-studio-line: #dfd1b9;
+  --color-danger: #a33e30;
+  --color-success: #2f6b57;
+
+  --color-hippy-ink: #3b2923;
+  --color-hippy-orange: #df682c;
+  --color-hippy-rust: #ba4f2d;
+  --color-hippy-gold: #efb83f;
+  --color-hippy-cream: #fff2d5;
+  --color-hippy-sand: #f7dd9c;
+  --color-hippy-sage: #a9c99a;
+  --color-hippy-lilac: #c9afd4;
+  --color-hippy-teal: #73aaa2;
+  --color-hippy-line: #d79c75;
+}
+
 @layer base {
+  *,
+  ::before,
+  ::after {
+    box-sizing: border-box;
+  }
+
   html {
-    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-    background: #fafaf9;
+    @apply min-h-full bg-cream font-body;
   }
 
   body {
-    margin: 0;
-    min-width: 320px;
+    @apply m-0 min-h-screen bg-cream font-body text-espresso;
   }
 
   button,
@@ -17,5 +51,26 @@
   textarea,
   select {
     font: inherit;
+  }
+
+  button,
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  a {
+    @apply text-inherit no-underline;
+  }
+
+  button {
+    @apply text-inherit;
+  }
+
+  dialog {
+    color: inherit;
+  }
+
+  :is(button, input, select, textarea, a):focus-visible {
+    @apply outline-3 outline-offset-2 outline-marigold/55;
   }
 }

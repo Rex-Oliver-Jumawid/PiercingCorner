@@ -1,43 +1,72 @@
 .app-shell {
   --shell-ink: #3b2923;
-  --shell-orange: #d66335;
+  --shell-orange: #df682c;
   --shell-cream: #fff2d5;
   --shell-sand: #f7dd9c;
   --shell-muted: #80675e;
   min-height: 100vh;
-  display: grid;
-  grid-template-columns: 230px minmax(0, 1fr);
-  gap: 15px;
+  position: relative;
+  display: flex;
+  height: 100vh;
+  min-height: 620px;
+  gap: 16px;
+  overflow: hidden;
   background:
-    radial-gradient(circle at 1% 90%, #df682c 0 70px, transparent 72px),
-    radial-gradient(circle at 99% 5%, #785b8e 0 53px, transparent 55px),
+    radial-gradient(circle at 1% 90%, #df682c 0 72px, transparent 74px),
+    radial-gradient(circle at 99% 5%, #785b8e 0 54px, transparent 56px),
+    repeating-radial-gradient(circle at 11% 8%, transparent 0 19px, rgba(185, 77, 40, 0.14) 20px 22px, transparent 23px 37px),
     var(--shell-sand);
-  padding: 14px;
+  padding: 16px;
   color: var(--shell-ink);
+  font-family: var(--font-body), 'DM Sans', sans-serif;
 }
 
-.app-sidebar,
-.app-main {
-  min-width: 0;
-  border: 2px solid var(--shell-ink);
-  box-shadow: 6px 6px 0 var(--shell-ink);
+.app-shell::after {
+  content: '✺';
+  position: absolute;
+  top: 18px;
+  left: 178px;
+  z-index: 0;
+  font-size: 26px;
+  color: #cc5834;
+  opacity: 0.65;
+  pointer-events: none;
 }
 
 .app-sidebar {
-  min-height: calc(100vh - 28px);
+  position: relative;
+  z-index: 1;
   display: flex;
+  width: 242px;
+  flex-basis: 242px;
   flex-direction: column;
+  flex-shrink: 0;
   overflow: hidden;
-  border-radius: 24px 14px 20px 17px;
-  background: #f9ecd1;
-  padding: 21px 14px 16px;
+  border: 2px solid var(--shell-ink);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 86% 9%, rgba(120, 91, 142, 0.22) 0 46px, transparent 48px),
+    #f9ecd1;
+  padding: 20px 14px;
+  box-shadow: 6px 6px 0 var(--shell-ink);
+}
+
+.app-sidebar::before {
+  content: '✦';
+  position: absolute;
+  top: 24px;
+  right: 18px;
+  font-size: 14px;
+  color: #cc5834;
 }
 
 .app-brand {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 8px 25px;
+  gap: 12px;
+  padding: 0 6px 20px;
 }
 
 .app-brand-mark {
@@ -48,10 +77,10 @@
   place-items: center;
   overflow: hidden;
   border: 2px solid var(--shell-ink);
-  border-radius: 50% 43% 55% 46%;
+  border-radius: 12px;
   background: var(--shell-orange);
-  box-shadow: 3px 3px 0 var(--shell-ink);
-  transform: rotate(-6deg);
+  box-shadow: 2px 2px 0 var(--shell-ink);
+  transform: rotate(-4deg);
 }
 
 .app-brand-mark img {
@@ -64,69 +93,80 @@
   min-width: 0;
 }
 
-.app-brand-copy strong,
-.app-page-heading > div {
-  font-family: Georgia, 'Times New Roman', serif;
-}
-
 .app-brand-copy strong {
   display: block;
+  font-family: var(--font-display), 'Fraunces', serif;
   font-size: 19px;
-  line-height: 1;
+  line-height: 1.1;
   font-weight: 700;
   white-space: nowrap;
+  color: var(--shell-ink);
 }
 
 .app-brand-copy small {
   display: block;
-  margin-top: 4px;
-  color: #54816e;
-  font-size: 7px;
-  font-weight: 900;
-  letter-spacing: 1.8px;
+  margin-top: 2px;
+  color: #ba4f2d;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
 .app-nav-label {
-  margin: 8px 12px;
+  position: relative;
+  z-index: 1;
+  margin: 10px 12px 6px;
   color: #9a5a40;
-  font-size: 8px;
-  font-weight: 900;
-  letter-spacing: 1.4px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
 .app-nav {
-  display: grid;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
   gap: 6px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.app-nav::-webkit-scrollbar {
+  display: none;
 }
 
 .app-nav a {
   min-height: 42px;
   display: flex;
   align-items: center;
-  gap: 11px;
-  border: 1px solid transparent;
-  border-radius: 12px 9px 13px 10px;
-  padding: 0 12px;
+  gap: 12px;
+  border: 1.5px solid transparent;
+  border-radius: 12px;
+  padding: 0 14px;
   color: #6f5148;
   background: transparent;
-  font-size: 11px;
-  font-weight: 800;
+  font-size: 13px;
+  font-weight: 700;
   text-align: left;
   text-decoration: none;
-  transition: background 140ms ease, color 140ms ease;
+  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease, color 120ms ease;
 }
 
 .app-nav a:hover {
+  transform: translateX(2px);
+  border-color: #d9a17d;
   background: #fff6df;
+  color: var(--shell-ink);
 }
 
 .app-nav a:focus-visible,
 .app-account button:focus-visible,
 .app-menu-button:focus-visible,
 .app-nav-close:focus-visible {
-  outline: 3px solid #df682c55;
-  outline-offset: 3px;
+  outline: 3px solid rgba(242, 106, 54, 0.35);
+  outline-offset: 2px;
 }
 
 .app-nav a.active {
@@ -138,48 +178,48 @@
 }
 
 .app-nav-icon {
-  width: 17px;
+  width: 18px;
+  height: 18px;
   flex: none;
-  font-size: 16px;
-  line-height: 1;
-  text-align: center;
-}
-
-.app-nav .calendar {
-  margin-top: 18px;
-  border-top: 1px dashed #d5a27f;
-  border-radius: 0;
-  padding-top: 16px;
-}
-
-.app-nav .calendar.active {
-  border: 2px solid var(--shell-ink);
-  border-radius: 12px 9px 13px 10px;
+  stroke-width: 2;
 }
 
 .app-account {
+  position: relative;
+  z-index: 1;
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
+  grid-template-columns: 38px minmax(0, 1fr);
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   margin-top: auto;
   border: 1.5px solid var(--shell-ink);
-  border-radius: 15px 11px 14px 12px;
+  border-radius: 14px;
   background: #fff7e7;
-  padding: 10px;
-  box-shadow: 3px 3px 0 #d59a72;
+  padding: 12px;
+  box-shadow: 2px 2px 0 var(--shell-ink);
+}
+
+.app-account::before {
+  content: '☾';
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  font-size: 12px;
+  color: #9a5f39;
 }
 
 .app-account-avatar {
-  width: 34px;
-  height: 34px;
+  width: 38px;
+  height: 38px;
   display: grid;
   place-items: center;
-  border: 1px solid var(--shell-ink);
-  border-radius: 50% 43% 52% 46%;
+  border: 1.5px solid var(--shell-ink);
+  border-radius: 10px;
   background: #e8dcef;
-  font-size: 9px;
-  font-weight: 900;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--shell-ink);
+  box-shadow: 1.5px 1.5px 0 var(--shell-ink);
 }
 
 .app-account-copy {
@@ -195,60 +235,111 @@
 }
 
 .app-account-copy strong {
-  font-size: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--shell-ink);
 }
 
 .app-account-copy small {
-  margin-top: 2px;
-  color: var(--shell-muted);
-  font-size: 8px;
+  margin-top: 1px;
+  color: #866456;
+  font-size: 11px;
+  text-transform: capitalize;
 }
 
 .app-account button {
-  grid-column: 2;
-  width: max-content;
-  border: 0;
-  background: transparent;
-  padding: 0;
-  color: #a04b2f;
+  grid-column: 1 / -1;
+  width: 100%;
+  margin-top: 6px;
+  border: 1.5px solid var(--shell-ink);
+  border-radius: 9px;
+  background: #f8d8b2;
+  padding: 6px 10px;
+  color: #773e2b;
   cursor: pointer;
-  font-size: 8px;
-  font-weight: 900;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  transition: all 120ms ease;
+}
+
+.app-account button:hover {
+  background: #f2c590;
 }
 
 .app-main {
-  min-height: calc(100vh - 28px);
-  overflow: hidden;
-  border-radius: 18px 26px 17px 23px;
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  min-width: 0;
+  flex: 1;
+  overflow-y: auto;
+  border-radius: 24px;
+  border: 2px solid var(--shell-ink);
   background:
-    radial-gradient(circle at 96% 0, #df682c3d 0 120px, transparent 122px),
-    radial-gradient(circle at 91% 1%, #785b8e35 0 90px, transparent 92px),
+    radial-gradient(circle at 96% 0, rgba(242, 106, 54, 0.2) 0 122px, transparent 124px),
+    radial-gradient(circle at 91% 1%, rgba(120, 91, 142, 0.18) 0 92px, transparent 94px),
+    linear-gradient(120deg, transparent 0 73%, rgba(239, 185, 161, 0.15) 73% 75%, transparent 75%),
     var(--shell-cream);
+  box-shadow: 6px 6px 0 var(--shell-ink);
+  scrollbar-width: none;
+}
+.app-main::-webkit-scrollbar {
+  display: none;
+}
+
+.app-main::before {
+  content: '✺ ✬ ☼';
+  position: absolute;
+  top: 73px;
+  right: 37px;
+  font-size: 13px;
+  letter-spacing: 8px;
+  color: #cc5834;
+  opacity: 0.76;
+  pointer-events: none;
 }
 
 .app-topbar {
-  min-height: 92px;
+  position: relative;
+  min-height: 84px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  border-bottom: 2px dashed #c9825a;
-  padding: 17px clamp(24px, 4vw, 52px);
+  background: transparent;
+  padding: 16px clamp(20px, 3vw, 44px);
+}
+
+.app-topbar::after {
+  content: '';
+  position: absolute;
+  right: clamp(20px, 3vw, 44px);
+  bottom: 0;
+  left: clamp(20px, 3vw, 44px);
+  height: 2px;
+  background: repeating-linear-gradient(90deg, #c9825a 0 8px, transparent 8px 14px);
+  opacity: 0.72;
 }
 
 .app-page-heading p {
-  margin: 0 0 4px;
-  color: #a04b2f;
-  font-size: 8px;
-  font-weight: 900;
-  letter-spacing: 1.8px;
+  margin: 0 0 3px;
+  color: #ba4f2d;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .app-page-heading > div {
   margin: 0;
-  font-size: 29px;
-  line-height: 1;
+  font-family: var(--font-display), 'Fraunces', serif;
+  font-size: 26px;
+  line-height: 1.15;
   font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--shell-ink);
 }
 
 .app-date {
@@ -256,17 +347,19 @@
   display: inline-flex;
   align-items: center;
   border: 1.5px solid var(--shell-ink);
-  border-radius: 10px 7px 11px 8px;
-  background: #fff8e8;
-  padding: 7px 11px;
+  border-radius: 12px;
+  background: #fff8e6;
+  padding: 7px 14px;
   box-shadow: 2px 2px 0 var(--shell-ink);
-  font-size: 9px;
-  font-weight: 900;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--shell-ink);
   white-space: nowrap;
 }
 
 .app-content {
-  padding: 26px clamp(22px, 4vw, 52px) 64px;
+  max-width: 1450px;
+  padding: 24px clamp(20px, 3vw, 44px) 64px;
 }
 
 .app-menu-button,
@@ -275,20 +368,26 @@
   display: none;
 }
 
-@media (max-width: 900px) {
-  .app-shell {
-    grid-template-columns: 205px minmax(0, 1fr);
+@media (max-width: 1100px) {
+  .app-sidebar {
+    width: 220px;
+    flex-basis: 220px;
   }
-
-  .app-brand-copy strong {
-    font-size: 16px;
+  .app-main::before {
+    right: 25px;
   }
 }
 
 @media (max-width: 760px) {
   .app-shell {
     display: block;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
     padding: 10px;
+  }
+  .app-shell::after {
+    display: none;
   }
 
   .app-sidebar {
@@ -300,6 +399,9 @@
     transform: translateX(calc(-100% - 20px));
     transition: transform 180ms ease;
   }
+  .app-sidebar::before {
+    display: none;
+  }
 
   .app-sidebar.open {
     transform: translateX(0);
@@ -310,7 +412,7 @@
     inset: 0;
     z-index: 50;
     border: 0;
-    background: #2d181288;
+    background: rgba(48, 35, 31, 0.5);
     opacity: 0;
     pointer-events: none;
     transition: opacity 180ms ease;
@@ -323,26 +425,39 @@
   }
 
   .app-nav-close {
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
     display: grid;
     flex: none;
     place-items: center;
     margin-left: auto;
     border: 1.5px solid var(--shell-ink);
-    border-radius: 9px;
-    background: #efc6a4;
-    font-size: 17px;
+    border-radius: 10px;
+    background: #f8d8b2;
+    font-size: 20px;
+    cursor: pointer;
   }
 
   .app-main {
-    min-height: calc(100vh - 20px);
+    height: auto;
+    min-height: calc(100vh - 110px);
+    width: 100%;
+    overflow: visible;
+    border-radius: 18px;
+    box-shadow: 4px 4px 0 var(--shell-ink);
+  }
+  .app-main::before {
+    display: none;
   }
 
   .app-topbar {
-    min-height: 78px;
+    min-height: 74px;
     justify-content: flex-start;
-    padding: 15px 20px;
+    padding: 14px 16px;
+  }
+  .app-topbar::after {
+    right: 16px;
+    left: 16px;
   }
 
   .app-menu-button {
@@ -352,14 +467,15 @@
     flex: none;
     place-items: center;
     border: 1.5px solid var(--shell-ink);
-    border-radius: 10px 7px 11px 8px;
+    border-radius: 10px;
     background: #fff8e8;
     box-shadow: 2px 2px 0 var(--shell-ink);
-    font-size: 17px;
+    font-size: 18px;
+    cursor: pointer;
   }
 
   .app-page-heading > div {
-    font-size: 25px;
+    font-size: 22px;
   }
 
   .app-date {
@@ -367,7 +483,7 @@
   }
 
   .app-content {
-    padding: 20px 14px 40px;
+    padding: 18px 14px 48px;
   }
 }
 

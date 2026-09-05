@@ -66,8 +66,8 @@ describe('authenticated application shell', () => {
       name: 'Primary navigation',
     })
     expect(within(navigation).getAllByRole('link').map((link) => link.textContent)).toEqual([
-      '▤Dashboard',
-      '♙Clients',
+      'Dashboard',
+      'Clients',
     ])
     expect(within(navigation).queryByRole('link', { name: 'Studio' })).not.toBeInTheDocument()
     expect(screen.getByText('PIERCING CORNER · STAFF')).toBeVisible()

@@ -79,7 +79,7 @@ function harness(
 }
 
 async function reviewNew(name = 'New Client') {
-  fireEvent.click(screen.getByRole('button', { name: '+ Add client' }))
+  fireEvent.click(screen.getByRole('button', { name: /Add client/i }))
   fireEvent.change(screen.getByRole('textbox', { name: 'Full name' }), {
     target: { value: name },
   })
@@ -159,7 +159,7 @@ describe('Clients workflow', () => {
   })
   it('validates before checking duplicates', async () => {
     harness()
-    fireEvent.click(screen.getByRole('button', { name: '+ Add client' }))
+    fireEvent.click(screen.getByRole('button', { name: /Add client/i }))
     fireEvent.click(screen.getByRole('button', { name: 'Review client' }))
     expect(
       await screen.findByText('Enter the client’s full name.'),
@@ -185,7 +185,7 @@ describe('Clients workflow', () => {
       count: 1,
     })
     harness()
-    fireEvent.click(screen.getByRole('button', { name: '+ Add client' }))
+    fireEvent.click(screen.getByRole('button', { name: /Add client/i }))
     fireEvent.change(screen.getByRole('textbox', { name: 'Full name' }), {
       target: { value: 'Ana Cruz' },
     })
@@ -206,7 +206,7 @@ describe('Clients workflow', () => {
       count: 1,
     })
     harness()
-    fireEvent.click(screen.getByRole('button', { name: '+ Add client' }))
+    fireEvent.click(screen.getByRole('button', { name: /Add client/i }))
     fireEvent.change(screen.getByRole('textbox', { name: 'Full name' }), {
       target: { value: 'Ana Cruz' },
     })
@@ -224,7 +224,7 @@ describe('Clients workflow', () => {
       new Error('Could not save this client.'),
     )
     harness()
-    fireEvent.click(screen.getByRole('button', { name: '+ Add client' }))
+    fireEvent.click(screen.getByRole('button', { name: /Add client/i }))
     fireEvent.change(screen.getByRole('textbox', { name: 'Full name' }), {
       target: { value: 'Ana' },
     })
@@ -324,7 +324,7 @@ describe('Clients workflow', () => {
   })
   it('handles Escape and restores focus to the opener', async () => {
     harness()
-    const opener = screen.getByRole('button', { name: '+ Add client' })
+    const opener = screen.getByRole('button', { name: /Add client/i })
     opener.focus()
     fireEvent.click(opener)
     fireEvent(

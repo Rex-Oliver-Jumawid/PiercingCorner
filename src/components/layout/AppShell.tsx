@@ -1,4 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
+import {
+  CalendarDays,
+  ChartNoAxesCombined,
+  ClipboardList,
+  LayoutDashboard,
+  Settings,
+  ShoppingBag,
+  Store,
+  UsersRound,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 
 import logoUrl from '../../../logo.png'
@@ -10,15 +21,15 @@ import type { ApplicationPath } from '../../features/auth/routeAccess'
 import { useAuth } from '../../features/auth/useAuth'
 import './appShell.css'
 
-const routeIcons: Record<ApplicationPath, string> = {
-  '/overview': '▦',
-  '/dashboard': '▤',
-  '/clients': '♙',
-  '/sales': '▣',
-  '/reports': '▥',
-  '/studio': '⌂',
-  '/settings': '⚙',
-  '/calendar': '▦',
+const routeIcons: Record<ApplicationPath, LucideIcon> = {
+  '/overview': LayoutDashboard,
+  '/dashboard': ClipboardList,
+  '/clients': UsersRound,
+  '/sales': ShoppingBag,
+  '/reports': ChartNoAxesCombined,
+  '/studio': Store,
+  '/settings': Settings,
+  '/calendar': CalendarDays,
 }
 
 function manilaDate() {
@@ -88,21 +99,22 @@ export function AppShell() {
 
         <p className="app-nav-label">{roleLabel} workspace</p>
         <nav className="app-nav" aria-label="Primary navigation">
-          {routes.map(({ path, label }) => (
-            <NavLink
-              key={path}
-              to={path}
-              onClick={() => setNavigationOpen(false)}
-              className={({ isActive }) =>
-                `${path === '/calendar' ? 'calendar ' : ''}${isActive ? 'active' : ''}`
-              }
-            >
-              <span className="app-nav-icon" aria-hidden="true">
-                {routeIcons[path]}
-              </span>
-              <span>{label}</span>
-            </NavLink>
-          ))}
+          {routes.map(({ path, label }) => {
+            const Icon = routeIcons[path]
+            return (
+              <NavLink
+                key={path}
+                to={path}
+                onClick={() => setNavigationOpen(false)}
+                className={({ isActive }) =>
+                  `${path === '/calendar' ? 'calendar ' : ''}${isActive ? 'active' : ''}`
+                }
+              >
+                <Icon className="app-nav-icon" aria-hidden="true" />
+                <span>{label}</span>
+              </NavLink>
+            )
+          })}
         </nav>
 
         <section className="app-account" aria-label="Signed-in account">

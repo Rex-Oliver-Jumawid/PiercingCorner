@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { CalendarDays, Plus, Search } from 'lucide-react'
 import { useAuth } from '../auth/useAuth'
 import { RecordSaleDialog } from './RecordSaleDialog'
 import { ExistingWaiverDialog } from './ExistingWaiverDialog'
@@ -7,6 +8,14 @@ import { FinalizeDialog, TransactionDialog } from './TransactionDialog'
 import { useTransactions } from './transactionQueries'
 import { formatManilaTime, formatMoney } from './transactionModel'
 import type { AcceptedWaiverSigning, DashboardTransaction, WaiverPreparation } from './transactionModel'
+import {
+  dashButton,
+  dashField,
+  emptyState,
+  featureView,
+  statusClasses,
+  tablePanel,
+} from '../../components/ui/dashboard-styles'
 import './dashboard.css'
 
 function DashboardWorkspace() {
@@ -37,47 +46,64 @@ function DashboardWorkspace() {
   const finalizing = query.data?.find((transaction) => transaction.id === finalizingId)
 
   return (
-    <section className="dashboard-page">
-      <article className="dashboard-panel">
-        <header className="dashboard-panel-head">
-          <div>
-            <p className="dashboard-eyebrow">DAILY OPERATIONS</p>
-            <h1>Today's transactions</h1>
-            <p>Operational workspace for Owner and Staff</p>
-          </div>
-          <div className="dashboard-header-actions">
-            <label className="dashboard-search">
-              <span>Search transactions</span>
-              <b aria-hidden="true">⌕</b>
+    <section className={`dashboard-page ${featureView}`}>
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        <button
+          type="button"
+          className={`${dashButton({ variant: 'primary' })} flex items-center gap-1.5`}
+          onClick={startSale}
+        >
+          <Plus className="size-4" />
+          <span>Add Transaction</span>
+        </button>
+      </div>
+
+      <article className={tablePanel}>
+        <div className="flex items-center justify-between border-b border-dashed border-[#dab08f] bg-[#fffaf0] p-3.5">
+          <label className={`${dashField} min-w-[280px] flex-1 max-w-[480px]`}>
+            <span className="sr-only">Search transactions</span>
+            <span className="relative block">
+              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-[#84685e]" />
               <input
+                className="!pl-9"
                 type="search"
                 value={search}
                 placeholder="Reference, client, item, staff, or status"
                 onChange={(event) => setSearch(event.target.value)}
               />
-            </label>
-            <button type="button" className="dashboard-button primary" onClick={startSale}>+ Add Transaction</button>
-          </div>
-        </header>
+            </span>
+          </label>
+        </div>
 
         {query.isPending ? <p role="status" className="dashboard-message">Loading today’s transactions…</p> : null}
         {query.isError ? (
           <div role="alert" className="dashboard-message dashboard-error">
             <p>{query.error.message}</p>
-            <button type="button" className="dashboard-button" onClick={() => void query.refetch()}>Try again</button>
+            <button type="button" className={dashButton({ variant: 'secondary' })} onClick={() => void query.refetch()}>
+              Try again
+            </button>
           </div>
         ) : null}
+
         {query.data ? (
           query.data.length ? (
-            <div className="dashboard-table-wrap">
+            <div className="overflow-x-auto">
               <table aria-label="Today's transactions dashboard">
-                <thead><tr><th>Time logged</th><th>Customer</th><th>Recorded by</th><th>Completion status</th></tr></thead>
+                <thead>
+                  <tr>
+                    <th>Time logged</th>
+                    <th>Customer</th>
+                    <th>Recorded by</th>
+                    <th>Completion status</th>
+                  </tr>
+                </thead>
                 <tbody>
                   {query.data.map((transaction) => (
                     <tr
                       key={transaction.id}
                       role="button"
                       tabIndex={0}
+                      className="cursor-pointer hover:bg-[#fff1cf] focus:bg-[#f7dfb3] focus:outline-2 focus:-outline-offset-2 focus:outline-[#d66335]"
                       aria-label={`Open transaction ${transaction.reference_code} for ${transaction.client_name}`}
                       onClick={() => setSelectedId(transaction.id)}
                       onKeyDown={(event) => {
@@ -87,19 +113,48 @@ function DashboardWorkspace() {
                         }
                       }}
                     >
-                      <td><strong>{formatManilaTime(transaction.created_at)}</strong><small>{transaction.reference_code}</small></td>
-                      <td><strong>{transaction.client_name}</strong><small>{transaction.items.map((item) => item.name).join(' · ') || 'No items'}</small></td>
-                      <td><strong>{transaction.recorded_by_name}</strong><small>{formatMoney(transaction.total)}</small></td>
-                      <td><span className={`transaction-status ${transaction.status}`}>{transaction.status}</span></td>
+                      <td>
+                        <strong className="block text-[#3b2923]">{formatManilaTime(transaction.created_at)}</strong>
+                        <small className="text-[8px] text-[#84685e]">{transaction.reference_code}</small>
+                      </td>
+                      <td>
+                        <strong className="block text-[#3b2923]">{transaction.client_name}</strong>
+                        <small className="text-[8px] text-[#84685e]">
+                          {transaction.items.map((item) => item.name).join(' · ') || 'No items'}
+                        </small>
+                      </td>
+                      <td>
+                        <strong className="block text-[#3b2923]">{transaction.recorded_by_name}</strong>
+                        <small className="text-[8px] text-[#84685e]">{formatMoney(transaction.total)}</small>
+                      </td>
+                      <td>
+                        <span className={statusClasses(transaction.status)}>
+                          {transaction.status.replace('_', ' ')}
+                        </span>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           ) : (
-            <div className="dashboard-empty">
-              <h2>{committedSearch ? 'No matching transactions' : 'No transactions logged today'}</h2>
-              <p>{committedSearch ? 'Try another reference, client, item, staff name, or status.' : 'Use Add Transaction to begin a product sale or prepare a service draft.'}</p>
+            <div className={emptyState}>
+              <span><CalendarDays /></span>
+              <h2>{committedSearch ? 'No matching transactions' : 'No transactions today'}</h2>
+              <p>
+                {committedSearch
+                  ? 'Try a different search query.'
+                  : 'Use Add Transaction to record your first studio sale or procedure today.'}
+              </p>
+              {!committedSearch && (
+                <button
+                  type="button"
+                  className={`${dashButton({ variant: 'primary' })} mt-2`}
+                  onClick={startSale}
+                >
+                  Add Transaction
+                </button>
+              )}
             </div>
           )
         ) : null}

@@ -3,6 +3,7 @@ import { useAuth } from '../auth/useAuth'
 import { CatalogCard } from './CatalogCard'
 import { CatalogEditor } from './CatalogEditor'
 import type { CatalogEntry, CatalogKind } from './catalogModel'
+import { featureView, panel, panelHead } from '../../components/ui/dashboard-styles'
 import './studio.css'
 
 interface EditorState {
@@ -14,19 +15,14 @@ function StudioWorkspace() {
   const [editor, setEditor] = useState<EditorState | null>(null)
 
   return (
-    <section className="studio-page">
-      <header className="studio-intro">
-        <div>
-          <p className="studio-eyebrow">STUDIO CATALOG</p>
-          <h1>Studio</h1>
-          <p>Manage the services and products used by transactions and sales.</p>
-        </div>
-        <span className="studio-owner-pill">◆ Owner only</span>
-      </header>
-      <section className="studio-panel" aria-labelledby="catalog-title">
-        <header className="studio-panel-head">
+    <section className={featureView}>
+      <div className="flex items-center justify-between gap-3">
+        <span className="studio-owner-pill">? Owner only</span>
+      </div>
+      <section className={panel} aria-labelledby="catalog-title">
+        <header className={panelHead}>
           <div>
-            <h2 id="catalog-title">Services &amp; Products</h2>
+            <h3 id="catalog-title">Services &amp; Products</h3>
             <p>Manage pricing and availability without changing historical transaction snapshots.</p>
           </div>
         </header>

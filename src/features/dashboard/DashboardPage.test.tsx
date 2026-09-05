@@ -186,7 +186,7 @@ describe('Dashboard transaction workflow', () => {
   it('completes an existing-client product sale through atomic checkout', async () => {
     harness()
     await screen.findByText(transaction.reference_code)
-    fireEvent.click(screen.getByRole('button', { name: '+ Add Transaction' }))
+    fireEvent.click(screen.getByRole('button', { name: /Add Transaction/i }))
     await chooseExistingClient()
     await selectItem('product', 'Titanium Stud')
     fireEvent.click(screen.getByRole('button', { name: 'Continue to Payment' }))
@@ -206,7 +206,7 @@ describe('Dashboard transaction workflow', () => {
   it('loads the pinned waiver template for a service sale', async () => {
     harness()
     await screen.findByText(transaction.reference_code)
-    fireEvent.click(screen.getByRole('button', { name: '+ Add Transaction' }))
+    fireEvent.click(screen.getByRole('button', { name: /Add Transaction/i }))
     await chooseExistingClient()
     await selectItem('service', 'Lobe Piercing')
     fireEvent.click(screen.getByRole('button', { name: 'Continue to Waiver' }))
@@ -220,7 +220,7 @@ describe('Dashboard transaction workflow', () => {
   it('continues a persisted service waiver directly through payment and completion', async () => {
     harness()
     await screen.findByText(transaction.reference_code)
-    fireEvent.click(screen.getByRole('button', { name: '+ Add Transaction' }))
+    fireEvent.click(screen.getByRole('button', { name: /Add Transaction/i }))
     await chooseExistingClient()
     await selectItem('service', 'Lobe Piercing')
     fireEvent.click(screen.getByRole('button', { name: 'Continue to Waiver' }))
@@ -358,7 +358,7 @@ describe('Dashboard transaction workflow', () => {
     })
     harness()
     await screen.findByText(transaction.reference_code)
-    fireEvent.click(screen.getByRole('button', { name: '+ Add Transaction' }))
+    fireEvent.click(screen.getByRole('button', { name: /Add Transaction/i }))
     fireEvent.click(screen.getByRole('button', { name: 'Walk-in / New Client' }))
     fireEvent.change(screen.getByRole('textbox', { name: 'first name' }), { target: { value: 'Ana' } })
     fireEvent.change(screen.getByRole('textbox', { name: 'last name' }), { target: { value: 'Cruz' } })
