@@ -56,7 +56,6 @@ export function TransactionDialog({
   const mutation = useDashboardMutation(
     ({ status }: { status: Exclude<TransactionStatus, 'completed'> }) =>
       updateTransactionStatus(transaction.id, status),
-    onClose,
   )
   const open = transaction.status === 'pending' || transaction.status === 'ongoing'
   const hasServices = transaction.items.some((item) => item.item_type === 'service')
@@ -268,6 +267,8 @@ export function FinalizeDialog({
   const [productIds, setProductIds] = useState(() =>
     transaction.items.flatMap((item) => item.product_id ?? []),
   )
+  const [serviceSearch, setServiceSearch] = useState('')
+  const [productSearch, setProductSearch] = useState('')
   const [payment, setPayment] = useState<PaymentDraft>({ method: 'cash', reference: '' })
   const [step, setStep] = useState<'items' | 'payment'>(initialStep)
   const [error, setError] = useState<string | null>(null)
@@ -279,6 +280,18 @@ export function FinalizeDialog({
     () => combinedOptions('product', transaction, products.data ?? []),
     [products.data, transaction],
   )
+  const visibleServiceOptions = useMemo(() => {
+    const query = serviceSearch.trim().toLocaleLowerCase()
+    return query
+      ? serviceOptions.filter((item) => item.name.toLocaleLowerCase().includes(query))
+      : serviceOptions
+  }, [serviceOptions, serviceSearch])
+  const visibleProductOptions = useMemo(() => {
+    const query = productSearch.trim().toLocaleLowerCase()
+    return query
+      ? productOptions.filter((item) => item.name.toLocaleLowerCase().includes(query))
+      : productOptions
+  }, [productOptions, productSearch])
   const mutation = useDashboardMutation(finalizeTransaction, onCompleted)
   const total = [...serviceOptions, ...productOptions].reduce(
     (sum, item) =>
@@ -324,51 +337,96 @@ export function FinalizeDialog({
   }
 
   return (
-    <dialog ref={setDialog} className="transaction-dialog finalize-dialog" aria-label="Finalize transaction">
+    <dialog
+      ref={setDialog}
+      className={`transaction-dialog finalize-dialog${step === 'payment' ? ' payment-step' : ''}`}
+      aria-label="Finalize transaction"
+      onCancel={(event) => {
+        event.preventDefault()
+        if (!mutation.isPending) onBack()
+      }}
+    >
       <header className="transaction-dialog-head">
-        <div><p className="dashboard-eyebrow">FINALIZE TRANSACTION</p><h2>{step === 'items' ? 'Review & Add Items' : 'Complete Payment'}</h2></div>
+        <div><p className="dashboard-eyebrow">{step === 'items' ? 'FINALIZE TRANSACTION' : 'PAYMENT'}</p><h2>{step === 'items' ? 'Review & Add Items' : 'Complete Payment'}</h2></div>
         <button type="button" aria-label="Close finalize transaction" disabled={mutation.isPending} onClick={onBack}>×</button>
       </header>
       {step === 'items' ? (
         <>
           <div className="transaction-dialog-body finalize-layout">
-            <div className="finalize-pickers">
-              {([
-                ['service', serviceOptions, serviceIds],
-                ['product', productOptions, productIds],
-              ] as const).map(([kind, options, selected]) => (
-                <section className="finalize-picker" key={kind}>
-                  <h3>{kind === 'service' ? 'Services' : 'Products'}</h3>
-                  {options.map((item) => (
-                    <label key={item.id}>
-                      <input
-                        type="checkbox"
-                        checked={selected.includes(item.id)}
-                        disabled={kind === 'service' && !transaction.has_waiver && !item.existing}
-                        onChange={() => toggle(kind, item.id)}
-                      />
-                      <span>{item.name}{item.existing ? <small>Original snapshot</small> : null}</span>
-                      <strong>{formatMoney(item.price)}</strong>
-                    </label>
+            <section className="finalize-left">
+              <h3 className="finalize-section-title">Add more items</h3>
+              <p className="finalize-section-sub">Select any additional services or products before payment.</p>
+              <div className="finalize-picker-group">
+                {([
+                  ['service', visibleServiceOptions, serviceIds, serviceSearch, setServiceSearch, services],
+                  ['product', visibleProductOptions, productIds, productSearch, setProductSearch, products],
+                ] as const).map(([kind, options, selected, search, setSearch, query]) => (
+                  <section className="finalize-picker" key={kind}>
+                    <div className="finalize-picker-head">
+                      <strong>{kind === 'service' ? 'Services' : 'Products'}</strong>
+                      <span>Check to add / uncheck to remove</span>
+                    </div>
+                    <input
+                      type="search"
+                      aria-label={`Search ${kind === 'service' ? 'services' : 'products'}`}
+                      autoComplete="off"
+                      placeholder={`Search ${kind === 'service' ? 'services' : 'products'}...`}
+                      value={search}
+                      onChange={(event) => setSearch(event.target.value)}
+                    />
+                    <div className="finalize-options">
+                      {options.map((item) => (
+                        <label className="finalize-option" key={item.id}>
+                          <input
+                            type="checkbox"
+                            checked={selected.includes(item.id)}
+                            disabled={kind === 'service' && !transaction.has_waiver && !item.existing}
+                            onChange={() => toggle(kind, item.id)}
+                          />
+                          <span>{item.name}{item.existing ? <small>Original snapshot</small> : null}</span>
+                          <strong>{formatMoney(item.price)}</strong>
+                        </label>
+                      ))}
+                      {!options.length ? (
+                        <p className="finalize-empty" aria-live="polite">
+                          {query.isPending ? 'Loading items…' : query.isError ? 'Could not load items.' : 'No matching items.'}
+                        </p>
+                      ) : null}
+                    </div>
+                  </section>
+                ))}
+              </div>
+              {error ? <p role="alert" className="dashboard-error finalize-error">{error}</p> : null}
+            </section>
+            <aside className="finalize-right">
+              <h3 className="finalize-section-title">Transaction Summary</h3>
+              <p className="finalize-section-sub">Updates immediately as items are selected.</p>
+              <section className="finalize-summary-card">
+                <header className="finalize-summary-head">
+                  <h3>{transaction.client_name}</h3>
+                  <p>{transaction.reference_code}</p>
+                </header>
+                <div className="finalize-summary-items">
+                  {([
+                    ['Services', serviceOptions.filter((item) => serviceIds.includes(item.id))],
+                    ['Products', productOptions.filter((item) => productIds.includes(item.id))],
+                  ] as const).map(([label, items]) => (
+                    <section className="finalize-summary-group" key={label}>
+                      <h4>{label}</h4>
+                      {items.map((item) => (
+                        <div className="finalize-summary-line" key={item.id}>
+                          <span>{item.name}</span><strong>{formatMoney(item.price)}</strong>
+                        </div>
+                      ))}
+                      {!items.length ? <p className="finalize-summary-empty">None selected</p> : null}
+                    </section>
                   ))}
-                </section>
-              ))}
-            </div>
-            <aside className="finalize-summary">
-              <h3>Transaction Summary</h3>
-              <p>{transaction.client_name} · {transaction.reference_code}</p>
-              {[...serviceOptions, ...productOptions]
-                .filter((item) =>
-                  item.kind === 'service'
-                    ? serviceIds.includes(item.id)
-                    : productIds.includes(item.id),
-                )
-                .map((item) => <div key={item.id}><span>{item.name}</span><strong>{formatMoney(item.price)}</strong></div>)}
-              <footer><span>Total amount</span><strong>{formatMoney(total)}</strong></footer>
+                </div>
+                <footer className="finalize-summary-total"><span>Total amount</span><strong>{formatMoney(total)}</strong></footer>
+              </section>
             </aside>
-            {error ? <p role="alert" className="dashboard-error">{error}</p> : null}
           </div>
-          <footer className="transaction-dialog-foot">
+          <footer className="transaction-dialog-foot finalize-footer">
             <button type="button" className="dashboard-button" onClick={onBack}>Back</button>
             <button type="button" className="dashboard-button primary" onClick={continueToPayment}>Proceed to payment</button>
           </footer>

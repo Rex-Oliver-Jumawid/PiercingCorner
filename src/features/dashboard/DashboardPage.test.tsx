@@ -227,6 +227,8 @@ describe('Dashboard transaction workflow', () => {
     await waitFor(() =>
       expect(service.updateTransactionStatus).toHaveBeenCalledWith('tx-1', 'ongoing'),
     )
+    expect(screen.getByRole('dialog', { name: 'Transaction details' })).toBeVisible()
+    expect(within(dialog).getByRole('button', { name: 'Finalize' })).toBeEnabled()
   })
 
   it('confirms transaction cancellation with the designed dialog', async () => {
@@ -362,7 +364,21 @@ describe('Dashboard transaction workflow', () => {
     harness()
     fireEvent.click(await screen.findByRole('button', { name: /Open transaction/ }))
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Transaction details' })).getByRole('button', { name: 'Finalize' }))
-    const finalize = screen.getByRole('dialog', { name: 'Finalize transaction' })
+    let finalize = screen.getByRole('dialog', { name: 'Finalize transaction' })
+    fireEvent(finalize, new Event('cancel', { cancelable: true }))
+    expect(screen.queryByRole('dialog', { name: 'Finalize transaction' })).not.toBeInTheDocument()
+    const reopenedDetails = screen.getByRole('dialog', { name: 'Transaction details' })
+    fireEvent.click(within(reopenedDetails).getByRole('button', { name: 'Finalize' }))
+    finalize = screen.getByRole('dialog', { name: 'Finalize transaction' })
+    expect(within(finalize).getByRole('heading', { name: 'Add more items' })).toBeVisible()
+    expect(within(finalize).getByRole('heading', { name: 'Transaction Summary' })).toBeVisible()
+    expect(await within(finalize).findByRole('checkbox', { name: /Titanium Stud/ })).not.toBeChecked()
+    const serviceSearch = within(finalize).getByRole('searchbox', { name: 'Search services' })
+    fireEvent.change(serviceSearch, { target: { value: 'missing service' } })
+    expect(within(finalize).queryByRole('checkbox', { name: /Lobe Piercing/ })).not.toBeInTheDocument()
+    expect(within(finalize).getByText('No matching items.')).toBeVisible()
+    fireEvent.change(serviceSearch, { target: { value: '' } })
+    expect(within(finalize).getByRole('checkbox', { name: /Lobe Piercing/ })).toBeChecked()
     fireEvent.click(within(finalize).getByRole('button', { name: 'Proceed to payment' }))
     expect(within(finalize).getByText('₱800.00')).toBeVisible()
     fireEvent.click(within(finalize).getByRole('button', { name: 'Confirm payment' }))
