@@ -22,11 +22,13 @@
 --    Status: inactive
 
 -- Clean up any existing fixture records first to allow idempotent re-runs
+DELETE FROM public.transaction_adjustments WHERE transaction_id::text LIKE 'a1000000-%';
+DELETE FROM private.waiver_signing_events WHERE transaction_id::text LIKE 'a1000000-%';
+DELETE FROM public.waivers WHERE transaction_id::text LIKE 'a1000000-%';
 DELETE FROM public.payments WHERE transaction_id::text LIKE 'a1000000-%';
 DELETE FROM public.transaction_items WHERE transaction_id::text LIKE 'a1000000-%';
 DELETE FROM public.transactions WHERE id::text LIKE 'a1000000-%';
 DELETE FROM public.piercer_profiles WHERE id::text LIKE 'a4000000-%';
-DELETE FROM public.stations WHERE id::text LIKE 'a5000000-%';
 DELETE FROM public.clients WHERE id::text LIKE 'a1000000-%';
 DELETE FROM public.staff_accounts WHERE id IN (
   'a0000000-0000-0000-0000-000000000001',
@@ -191,7 +193,41 @@ VALUES
   ('a5000000-0000-0000-0000-000000000001', 'Station 1', true),
   ('a5000000-0000-0000-0000-000000000002', 'Station 2', true),
   ('a5000000-0000-0000-0000-000000000003', 'Station 3', true)
+ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, active = EXCLUDED.active;
+
+-- Starter Studio profiles are fully configured for the active service catalog
+-- and the default Monday-Saturday Studio Hours, so they can be assigned in
+-- the Dashboard's service-sale flow.
+UPDATE public.piercer_profiles
+SET default_station_id = CASE id
+  WHEN 'a4000000-0000-0000-0000-000000000001'::uuid THEN 'a5000000-0000-0000-0000-000000000001'::uuid
+  WHEN 'a4000000-0000-0000-0000-000000000002'::uuid THEN 'a5000000-0000-0000-0000-000000000002'::uuid
+  WHEN 'a4000000-0000-0000-0000-000000000003'::uuid THEN 'a5000000-0000-0000-0000-000000000003'::uuid
+END
+WHERE id IN (
+  'a4000000-0000-0000-0000-000000000001'::uuid,
+  'a4000000-0000-0000-0000-000000000002'::uuid,
+  'a4000000-0000-0000-0000-000000000003'::uuid
+);
+
+INSERT INTO public.piercer_service_qualifications (piercer_profile_id, service_id)
+VALUES
+  ('a4000000-0000-0000-0000-000000000001', 'a2000000-0000-0000-0000-000000000001'),
+  ('a4000000-0000-0000-0000-000000000001', 'a2000000-0000-0000-0000-000000000002'),
+  ('a4000000-0000-0000-0000-000000000002', 'a2000000-0000-0000-0000-000000000003'),
+  ('a4000000-0000-0000-0000-000000000003', 'a2000000-0000-0000-0000-000000000004')
 ON CONFLICT DO NOTHING;
+
+INSERT INTO public.piercer_availability (piercer_profile_id, weekday, starts_at, ends_at)
+SELECT piercer.id, weekday.value, '10:00'::time, '20:00'::time
+FROM public.piercer_profiles piercer
+CROSS JOIN generate_series(1, 6) AS weekday(value)
+WHERE piercer.id IN (
+  'a4000000-0000-0000-0000-000000000001'::uuid,
+  'a4000000-0000-0000-0000-000000000002'::uuid,
+  'a4000000-0000-0000-0000-000000000003'::uuid
+)
+ON CONFLICT (piercer_profile_id, weekday) DO NOTHING;
 
 -- Initial Products
 INSERT INTO public.products (id, name, price, active)

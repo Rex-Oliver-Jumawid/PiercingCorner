@@ -172,8 +172,8 @@
 .studio-empty { margin: 0; padding: 22px 16px; color: var(--studio-muted); text-align: center; }
 .studio-notice { margin: 0; border: 1px dashed #d4a27d; border-radius: 10px; background: #fff5df; padding: 10px; color: var(--studio-muted); font-size: 11px; }
 .studio-check-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.studio-check-row { display: flex; align-items: center; gap: 8px; border: 1px solid #d7b797; border-radius: 9px; background: #fff9eb; padding: 9px; font-size: 11px; font-weight: 800; }
-.studio-check-row input { width: 16px; min-height: auto; box-shadow: none; }
+.studio-check-row { display: flex; align-items: center; gap: 8px; border: 1px solid #d7b797; border-radius: 9px; background: #fff9eb; padding: 9px; font-size: 9px; font-weight: 800; }
+.studio-check-row input { width: 15px; height: 15px; margin: 0; }
 .studio-editor-error { margin: 0 22px 14px; }
 .catalog-button.danger { background: #f3c4b8; color: #7d2919; }
 .studio-delete { margin-right: auto; }
@@ -322,7 +322,7 @@
 }
 
 .catalog-search-wrap input,
-.catalog-form input,
+.catalog-form input:not([type='checkbox']),
 .catalog-form textarea,
 .catalog-form select {
   width: 100%;
@@ -349,7 +349,7 @@
 }
 
 .catalog-search-wrap input:focus,
-.catalog-form input:focus,
+.catalog-form input:not([type='checkbox']):focus,
 .catalog-form textarea:focus,
 .catalog-form select:focus {
   border-color: var(--studio-orange);
