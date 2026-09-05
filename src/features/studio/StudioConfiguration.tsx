@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
+import { Search } from 'lucide-react'
 import { DateField, SelectField, TimeField } from '../../components/ui/FormControls'
 import { CatalogCard } from './CatalogCard'
 import { useStudioMutation } from './studioQueries'
@@ -84,11 +85,17 @@ function PiercerEditor({ profile, configuration, onClose }: { profile?: PiercerP
 function QualificationsEditor({ profile, configuration, onClose }: { profile: PiercerProfile; configuration: StudioConfiguration; onClose: () => void }) {
   const initial = configuration.qualifications.filter((item) => item.piercer_profile_id === profile.id).map((item) => item.service_id)
   const [selected, setSelected] = useState(initial)
+  const [search, setSearch] = useState('')
   const mutation = useStudioMutation((ids: string[]) => service.replaceQualifications(profile.id, ids))
+  const normalizedSearch = search.trim().toLocaleLowerCase('en-PH')
+  const visibleServices = normalizedSearch
+    ? configuration.services.filter((item) => item.name.toLocaleLowerCase('en-PH').includes(normalizedSearch))
+    : configuration.services
   function submit(event: FormEvent) { event.preventDefault(); mutation.mutate(selected, { onSuccess: onClose }) }
   return <EditorShell title="Services Offered" subtitle={profile.display_name} busy={mutation.isPending} error={mutation.error?.message} onClose={onClose} onSubmit={submit}>
     <p className="studio-notice catalog-wide">Choose every service this piercer may be assigned to perform.</p>
-    <div className="studio-check-grid catalog-wide">{configuration.services.map((item) => <label className="studio-check-row" key={item.id}><input type="checkbox" checked={selected.includes(item.id)} onChange={() => setSelected((current) => current.includes(item.id) ? current.filter((id) => id !== item.id) : [...current, item.id])} /><span>{item.name}{item.active ? '' : ' (Inactive)'}</span></label>)}</div>
+    <label className="studio-service-search catalog-wide"><span>Search services</span><div><Search aria-hidden="true" /><input type="search" value={search} placeholder="Search by service name…" onChange={(event) => setSearch(event.target.value)} /></div></label>
+    {visibleServices.length ? <div className="studio-check-grid studio-qualification-grid catalog-wide">{visibleServices.map((item) => <label className="studio-check-row" key={item.id}><input type="checkbox" checked={selected.includes(item.id)} onChange={() => setSelected((current) => current.includes(item.id) ? current.filter((id) => id !== item.id) : [...current, item.id])} /><span>{item.name}{item.active ? '' : ' (Inactive)'}</span></label>)}</div> : <p className="studio-service-search-empty catalog-wide">No services match “{search.trim()}”.</p>}
   </EditorShell>
 }
 
