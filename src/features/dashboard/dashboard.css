@@ -944,6 +944,10 @@
   line-height: 1.5;
 }
 
+.transaction-dialog-body > .sale-rule {
+  margin-top: 18px;
+}
+
 .transaction-preview-action {
   display: flex;
   justify-content: flex-end;

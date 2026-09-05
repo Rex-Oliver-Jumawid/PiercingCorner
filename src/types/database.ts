@@ -120,10 +120,46 @@ export type Database = {
           },
         ]
       }
+      piercer_availability: {
+        Row: {
+          created_at: string
+          ends_at: string
+          piercer_profile_id: string
+          starts_at: string
+          updated_at: string
+          weekday: number
+        }
+        Insert: {
+          created_at?: string
+          ends_at: string
+          piercer_profile_id: string
+          starts_at: string
+          updated_at?: string
+          weekday: number
+        }
+        Update: {
+          created_at?: string
+          ends_at?: string
+          piercer_profile_id?: string
+          starts_at?: string
+          updated_at?: string
+          weekday?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "piercer_availability_piercer_profile_id_fkey"
+            columns: ["piercer_profile_id"]
+            isOneToOne: false
+            referencedRelation: "piercer_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       piercer_profiles: {
         Row: {
           active: boolean
           created_at: string
+          default_station_id: string | null
           display_name: string
           id: string
           updated_at: string
@@ -131,6 +167,7 @@ export type Database = {
         Insert: {
           active?: boolean
           created_at?: string
+          default_station_id?: string | null
           display_name: string
           id?: string
           updated_at?: string
@@ -138,11 +175,53 @@ export type Database = {
         Update: {
           active?: boolean
           created_at?: string
+          default_station_id?: string | null
           display_name?: string
           id?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "piercer_profiles_default_station_id_fkey"
+            columns: ["default_station_id"]
+            isOneToOne: false
+            referencedRelation: "stations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      piercer_service_qualifications: {
+        Row: {
+          created_at: string
+          piercer_profile_id: string
+          service_id: string
+        }
+        Insert: {
+          created_at?: string
+          piercer_profile_id: string
+          service_id: string
+        }
+        Update: {
+          created_at?: string
+          piercer_profile_id?: string
+          service_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "piercer_service_qualifications_piercer_profile_id_fkey"
+            columns: ["piercer_profile_id"]
+            isOneToOne: false
+            referencedRelation: "piercer_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "piercer_service_qualifications_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       products: {
         Row: {
@@ -254,6 +333,105 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      studio_exceptions: {
+        Row: {
+          closes_at: string | null
+          created_at: string
+          exception_date: string
+          exception_type: Database["public"]["Enums"]["studio_exception_type"]
+          id: string
+          opens_at: string | null
+          reason: string
+          updated_at: string
+        }
+        Insert: {
+          closes_at?: string | null
+          created_at?: string
+          exception_date: string
+          exception_type: Database["public"]["Enums"]["studio_exception_type"]
+          id?: string
+          opens_at?: string | null
+          reason: string
+          updated_at?: string
+        }
+        Update: {
+          closes_at?: string | null
+          created_at?: string
+          exception_date?: string
+          exception_type?: Database["public"]["Enums"]["studio_exception_type"]
+          id?: string
+          opens_at?: string | null
+          reason?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      studio_hours: {
+        Row: {
+          closes_at: string | null
+          is_open: boolean
+          opens_at: string | null
+          weekday: number
+        }
+        Insert: {
+          closes_at?: string | null
+          is_open: boolean
+          opens_at?: string | null
+          weekday: number
+        }
+        Update: {
+          closes_at?: string | null
+          is_open?: boolean
+          opens_at?: string | null
+          weekday?: number
+        }
+        Relationships: []
+      }
+      transaction_adjustments: {
+        Row: {
+          adjustment_type: Database["public"]["Enums"]["transaction_adjustment_type"]
+          amount: number
+          created_at: string
+          id: string
+          reason: string
+          recorded_by: string
+          transaction_id: string
+        }
+        Insert: {
+          adjustment_type: Database["public"]["Enums"]["transaction_adjustment_type"]
+          amount: number
+          created_at?: string
+          id?: string
+          reason: string
+          recorded_by?: string
+          transaction_id: string
+        }
+        Update: {
+          adjustment_type?: Database["public"]["Enums"]["transaction_adjustment_type"]
+          amount?: number
+          created_at?: string
+          id?: string
+          reason?: string
+          recorded_by?: string
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_adjustments_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "staff_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_adjustments_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       transaction_items: {
         Row: {
@@ -568,6 +746,22 @@ export type Database = {
           total: number
         }[]
       }
+      cancel_completed_transaction: {
+        Args: {
+          cancellation_reason: string
+          selected_adjustment_type: Database["public"]["Enums"]["transaction_adjustment_type"]
+          target_transaction_id: string
+        }
+        Returns: {
+          adjustment_type: Database["public"]["Enums"]["transaction_adjustment_type"]
+          amount: number
+          created_at: string
+          id: string
+          reason: string
+          recorded_by: string
+          transaction_id: string
+        }[]
+      }
       create_client: {
         Args: {
           candidate_email?: string
@@ -630,14 +824,26 @@ export type Database = {
           phone: string
         }[]
       }
+      get_assignable_piercers: {
+        Args: { selected_service_ids: string[] }
+        Returns: {
+          default_station_id: string
+          id: string
+          name: string
+        }[]
+      }
       get_completed_sale: {
         Args: { target_transaction_id: string }
         Returns: {
+          adjustment_history: Json
+          adjustments: number
           client_name: string
           completed_at: string
+          financial_status: string
           has_waiver: boolean
           id: string
           items: Json
+          net_total: number
           paid: number
           payments: Json
           recorded_by_name: string
@@ -710,9 +916,9 @@ export type Database = {
       get_sales_metrics: {
         Args: never
         Returns: {
-          collected: number
+          adjustments: number
           completed_transactions: number
-          service_sales: number
+          net_revenue: number
         }[]
       }
       get_transaction_waiver: {
@@ -732,6 +938,14 @@ export type Database = {
       }
       is_owner: { Args: never; Returns: boolean }
       next_transaction_reference: { Args: never; Returns: string }
+      piercer_is_assignable: {
+        Args: {
+          at_time: string
+          selected_service_ids: string[]
+          target_piercer_profile_id: string
+        }
+        Returns: boolean
+      }
       prepare_waiver_signing: {
         Args: { target_transaction_id?: string }
         Returns: {
@@ -755,6 +969,13 @@ export type Database = {
           id: string
           reference_code: string
         }[]
+      }
+      replace_piercer_qualifications: {
+        Args: {
+          selected_service_ids: string[]
+          target_piercer_profile_id: string
+        }
+        Returns: undefined
       }
       search_clients: {
         Args: { search_text?: string }
@@ -785,13 +1006,16 @@ export type Database = {
           to_date?: string
         }
         Returns: {
+          adjustments: number
           client_name: string
           completed_at: string
+          financial_status: string
           has_product: boolean
           has_service: boolean
           has_waiver: boolean
           id: string
           items: Json
+          net_total: number
           paid: number
           payment_methods: string[]
           recorded_by_name: string
@@ -850,6 +1074,8 @@ export type Database = {
         | "bank_transfer"
         | "card"
         | "other"
+      studio_exception_type: "closed" | "reduced_hours"
+      transaction_adjustment_type: "refund" | "void"
       transaction_item_type: "service" | "product"
       transaction_status: "pending" | "ongoing" | "completed" | "cancelled"
     }
@@ -992,6 +1218,8 @@ export const Constants = {
         "card",
         "other",
       ],
+      studio_exception_type: ["closed", "reduced_hours"],
+      transaction_adjustment_type: ["refund", "void"],
       transaction_item_type: ["service", "product"],
       transaction_status: ["pending", "ongoing", "completed", "cancelled"],
     },

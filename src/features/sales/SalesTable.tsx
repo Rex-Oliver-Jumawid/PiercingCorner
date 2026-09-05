@@ -1,5 +1,5 @@
 import { formatMoney } from '../dashboard/transactionModel'
-import { manilaDateTime, paymentMethodLabel } from './salesModel'
+import { financialStatusLabel, manilaDateTime, paymentMethodLabel } from './salesModel'
 import type { CompletedSale } from './salesModel'
 import { statusClasses } from '../../components/ui/dashboard-styles'
 
@@ -61,7 +61,9 @@ export function SalesTable({
                 {paymentMethodLabel(sale.payment_methods)}
               </td>
               <td className="border-t border-dashed border-[#dab08f] px-4 py-3 text-[10px]">
-                <span className={statusClasses('completed')}>Completed</span>
+                <span className={statusClasses(sale.financial_status === 'completed' ? 'completed' : sale.financial_status === 'refund' ? 'confirmed' : 'cancelled')}>
+                  {financialStatusLabel(sale.financial_status)}
+                </span>
               </td>
               <td className="border-t border-dashed border-[#dab08f] px-4 py-3 text-[10px] text-[#84685e] max-w-[200px]">
                 <span className="block truncate">

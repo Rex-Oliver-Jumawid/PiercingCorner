@@ -35,13 +35,21 @@ export function useActiveCatalog(kind: CatalogKind) {
   })
 }
 
-export function useActiveStudioResources(kind: 'piercer' | 'station') {
+export function useActiveStudioResources(kind: 'station') {
   const scope = useDashboardScope()
   return useQuery({
     queryKey: [...scope, 'studio-resources', kind],
-    queryFn: ({ signal }): Promise<StudioResourceOption[]> => kind === 'piercer'
-      ? service.listActivePiercers(signal)
-      : service.listActiveStations(signal),
+    queryFn: ({ signal }): Promise<StudioResourceOption[]> => service.listActiveStations(signal),
+  })
+}
+
+export function useAssignablePiercers(serviceIds: string[]) {
+  const scope = useDashboardScope()
+  const ids = [...serviceIds].sort()
+  return useQuery({
+    queryKey: [...scope, 'assignable-piercers', ids],
+    enabled: ids.length > 0,
+    queryFn: ({ signal }) => service.listAssignablePiercers(ids, signal),
   })
 }
 

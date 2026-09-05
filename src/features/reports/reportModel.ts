@@ -49,8 +49,8 @@ function csvCell(value: string | number) {
 }
 
 export function buildSalesCsv(rows: CompletedSale[]) {
-  const headings = ['Reference', 'Completed at (Asia/Manila)', 'Client', 'Items', 'Total', 'Paid', 'Payment methods', 'Recorded by']
-  const lines = rows.map((sale) => [sale.reference_code, new Intl.DateTimeFormat('en-PH', { timeZone: 'Asia/Manila', dateStyle: 'short', timeStyle: 'medium' }).format(new Date(sale.completed_at)), sale.client_name, sale.items.map((item) => `${item.name} (${item.item_type}, qty ${item.quantity})`).join(' + '), sale.total.toFixed(2), sale.paid.toFixed(2), sale.payment_methods.join(' + '), sale.recorded_by_name])
+  const headings = ['Reference', 'Completed at (Asia/Manila)', 'Client', 'Items', 'Total', 'Paid', 'Adjustments', 'Net total', 'Status', 'Payment methods', 'Recorded by']
+  const lines = rows.map((sale) => [sale.reference_code, new Intl.DateTimeFormat('en-PH', { timeZone: 'Asia/Manila', dateStyle: 'short', timeStyle: 'medium' }).format(new Date(sale.completed_at)), sale.client_name, sale.items.map((item) => `${item.name} (${item.item_type}, qty ${item.quantity})`).join(' + '), sale.total.toFixed(2), sale.paid.toFixed(2), sale.adjustments.toFixed(2), sale.net_total.toFixed(2), sale.financial_status, sale.payment_methods.join(' + '), sale.recorded_by_name])
   return `\uFEFF${[headings, ...lines].map((row) => row.map(csvCell).join(',')).join('\r\n')}\r\n`
 }
 

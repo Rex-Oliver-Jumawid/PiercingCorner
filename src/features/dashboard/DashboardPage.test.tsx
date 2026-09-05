@@ -77,8 +77,8 @@ beforeEach(() => {
       ? [{ id: 'service-1', name: 'Lobe Piercing', price: 800, active: true }]
       : [{ id: 'product-1', name: 'Titanium Stud', price: 500, active: true }],
   )
-  vi.mocked(service.listActivePiercers).mockResolvedValue([
-    { id: 'piercer-1', name: 'Ana Santos' },
+  vi.mocked(service.listAssignablePiercers).mockResolvedValue([
+    { id: 'piercer-1', name: 'Ana Santos', default_station_id: null },
   ])
   vi.mocked(service.listActiveStations).mockResolvedValue([
     { id: 'station-1', name: 'Station 1' },
@@ -291,6 +291,22 @@ describe('Dashboard transaction workflow', () => {
     expect(service.recordProductSale).not.toHaveBeenCalled()
     expect(useSaleStore.getState().serviceIds).toEqual(['service-1'])
     expect(service.acceptNewServiceWaiver).not.toHaveBeenCalled()
+  })
+
+  it('preselects an active default station from the assignable piercer', async () => {
+    vi.mocked(service.listAssignablePiercers).mockResolvedValue([
+      { id: 'piercer-1', name: 'Ana Santos', default_station_id: 'station-1' },
+    ])
+    harness()
+    await screen.findByText(transaction.reference_code)
+    fireEvent.click(screen.getByRole('button', { name: /Add Transaction/i }))
+    await chooseExistingClient()
+    await selectItem('service', 'Lobe Piercing')
+    const dialog = screen.getByRole('dialog', { name: 'Add Transaction' })
+    const piercer = within(dialog).getByRole('textbox', { name: 'Piercer' })
+    fireEvent.focus(piercer)
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'Ana Santos' }))
+    expect(within(dialog).getByRole('textbox', { name: 'Station' })).toHaveValue('Station 1')
   })
 
   it('continues a persisted service waiver directly through payment and completion', async () => {

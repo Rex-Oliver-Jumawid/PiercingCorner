@@ -23,6 +23,16 @@ insert into public.services (id, name, price, active)
 values ('30000000-0000-0000-0000-000000000020', 'Waiver Service', 750, true);
 insert into public.products (id, name, price, active)
 values ('30000000-0000-0000-0000-000000000030', 'Waiver Product', 250, true);
+insert into public.stations (id, name, active)
+values ('30000000-0000-0000-0000-000000000031', 'Waiver Station', true);
+insert into public.piercer_profiles (id, display_name, active, default_station_id)
+values ('30000000-0000-0000-0000-000000000040', 'Waiver Piercer', true, '30000000-0000-0000-0000-000000000031');
+insert into public.piercer_service_qualifications (piercer_profile_id, service_id)
+values ('30000000-0000-0000-0000-000000000040', '30000000-0000-0000-0000-000000000020');
+update public.studio_hours set is_open = true, opens_at = '00:00', closes_at = '23:59:59'
+where weekday = extract(isodow from clock_timestamp() at time zone 'Asia/Manila');
+insert into public.piercer_availability (piercer_profile_id, weekday, starts_at, ends_at)
+values ('30000000-0000-0000-0000-000000000040', extract(isodow from clock_timestamp() at time zone 'Asia/Manila'), '00:00', '23:59:59');
 
 set local role authenticated;
 select set_config('request.jwt.claim.role', 'authenticated', true);
@@ -42,7 +52,7 @@ select set_config('request.jwt.claim.sub', '30000000-0000-0000-0000-000000000002
 create temp table accepted as
 select * from public.accept_new_service_waiver(
   (select event_id from prepared),
-  '{"existing_client_id":"30000000-0000-0000-0000-000000000010"}'::jsonb,
+  '{"existing_client_id":"30000000-0000-0000-0000-000000000010","piercer_profile_id":"30000000-0000-0000-0000-000000000040","station_id":"30000000-0000-0000-0000-000000000031"}'::jsonb,
   array['30000000-0000-0000-0000-000000000020']::uuid[],
   array['30000000-0000-0000-0000-000000000030']::uuid[]
 );

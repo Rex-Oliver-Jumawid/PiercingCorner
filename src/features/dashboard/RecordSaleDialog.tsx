@@ -6,7 +6,7 @@ import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog'
 import { useCheckDuplicates } from '../clients/clientQueries'
 import { hasSaleDraft, useSaleStore } from './saleStore'
 import { SignaturePad, type SignaturePadHandle } from './SignaturePad'
-import { useActiveCatalog, useActiveStudioResources, useClientOptions, useDashboardMutation } from './transactionQueries'
+import { useActiveCatalog, useActiveStudioResources, useAssignablePiercers, useClientOptions, useDashboardMutation } from './transactionQueries'
 import {
   abandonWaiverSigning,
   acceptNewServiceWaiver,
@@ -97,7 +97,7 @@ export function RecordSaleDialog({ onCompleted }: { onCompleted: (transactionId:
   const [confirmation, setConfirmation] = useState<'leave-pending' | 'discard-draft' | null>(null)
   const services = useActiveCatalog('service')
   const products = useActiveCatalog('product')
-  const piercers = useActiveStudioResources('piercer')
+  const piercers = useAssignablePiercers(store.serviceIds)
   const stations = useActiveStudioResources('station')
   const clientQuery = clientSearch.trim()
   const selectingItems = store.step === 'services' || store.step === 'products'
@@ -111,6 +111,7 @@ export function RecordSaleDialog({ onCompleted }: { onCompleted: (transactionId:
   const productMutation = useDashboardMutation(recordProductSale, (result) => { setCompletedId(result.id); store.setStep('completed') })
   const servicePaymentMutation = useDashboardMutation(finalizeTransaction, (result) => { setCompletedId(result.id); store.setStep('completed') })
   const busy = productMutation.isPending || servicePaymentMutation.isPending || duplicateCheck.isPending || waiverBusy
+  const assignedPiercer = piercer && piercers.data?.some((option) => option.id === piercer.id) ? piercer : null
 
   useEffect(() => { dialog?.showModal(); return () => dialog?.close() }, [dialog])
 
@@ -129,7 +130,7 @@ export function RecordSaleDialog({ onCompleted }: { onCompleted: (transactionId:
     if (store.clientMode === 'existing') {
       if (!store.existingClient) { setFormError('Search for and select an existing client.'); return }
       if (store.serviceIds.length) {
-        if (!piercer || !station) { setFormError('Choose both a piercer and station for a service transaction.'); return }
+        if (!assignedPiercer || !station) { setFormError('Choose both a currently assignable piercer and station for a service transaction.'); return }
         await beginWaiver()
       } else store.setStep('payment')
       return
@@ -137,8 +138,8 @@ export function RecordSaleDialog({ onCompleted }: { onCompleted: (transactionId:
     const validated = validateNewClient(store.newClient)
     setClientErrors(validated.errors)
     if (Object.keys(validated.errors).length) return
-    if (store.serviceIds.length && (!piercer || !station)) {
-      setFormError('Choose both a piercer and station for a service transaction.')
+    if (store.serviceIds.length && (!assignedPiercer || !station)) {
+      setFormError('Choose both a currently assignable piercer and station for a service transaction.')
       return
     }
     try {
@@ -156,7 +157,7 @@ export function RecordSaleDialog({ onCompleted }: { onCompleted: (transactionId:
 
   function continueNewClient() {
     if (store.serviceIds.length) {
-      if (!piercer || !station) { setFormError('Choose both a piercer and station for a service transaction.'); return }
+      if (!assignedPiercer || !station) { setFormError('Choose both a currently assignable piercer and station for a service transaction.'); return }
       void beginWaiver()
     } else store.setStep('payment')
   }
@@ -168,8 +169,8 @@ export function RecordSaleDialog({ onCompleted }: { onCompleted: (transactionId:
       const png = signatureBlob ?? await signaturePad.current?.toPngBlob()
       if (!png) throw new Error('Could not export the signature.')
       setSignatureBlob(png)
-      if (!piercer || !station) throw new Error('Choose both a piercer and station for a service transaction.')
-      const signing = accepted ?? await acceptNewServiceWaiver({ eventId: preparation.event_id, existingClient: store.existingClient, newClient: store.newClient, serviceIds: store.serviceIds, productIds: store.productIds, piercerId: piercer.id, stationId: station.id })
+      if (!assignedPiercer || !station) throw new Error('Choose both a currently assignable piercer and station for a service transaction.')
+      const signing = accepted ?? await acceptNewServiceWaiver({ eventId: preparation.event_id, existingClient: store.existingClient, newClient: store.newClient, serviceIds: store.serviceIds, productIds: store.productIds, piercerId: assignedPiercer.id, stationId: station.id })
       setAccepted(signing)
       const { buildWaiverPdf } = await import('./waiverPdf')
       const pdf = await buildWaiverPdf({ transactionReference: signing.reference_code, clientName: signing.client_name, templateVersion: signing.template_version, templateBody: signing.template_body, signedAt: signing.signed_at, signaturePng: png })
@@ -226,7 +227,14 @@ export function RecordSaleDialog({ onCompleted }: { onCompleted: (transactionId:
       <div className="transaction-dialog-body artifact-modal-body">
         <div className="artifact-client-mode" role="group" aria-label="Client type"><button type="button" className={store.clientMode === 'existing' ? 'active' : ''} onClick={() => store.setClientMode('existing')}>Existing Client</button><button type="button" className={store.clientMode === 'new' ? 'active' : ''} onClick={() => store.setClientMode('new')}>Walk-in / New Client</button></div>
         {store.clientMode === 'existing' ? <section className="artifact-client-section"><div className="artifact-field artifact-autocomplete"><label>Customer</label><div className="artifact-autocomplete-wrap"><input aria-label="Customer" autoComplete="off" value={clientSearch} placeholder="Search customer name..." onFocus={() => setClientFocused(true)} onBlur={() => window.setTimeout(() => setClientFocused(false), 100)} onChange={(event) => { setClientSearch(event.target.value); store.setExistingClient(null) }} /><Search aria-hidden="true" /></div>{clientFocused ? <div className="artifact-suggestions" role="listbox" aria-label="Customer results">{clientOptions.isPending ? <p role="status">Searching clients…</p> : null}{clientOptions.isError ? <p role="alert" className="dashboard-error">{clientOptions.error.message}</p> : null}{clientSearch !== store.existingClient?.full_name && clientOptions.data ? clientOptions.data.map((client) => <button key={client.id} type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => { chooseExisting(client); setClientFocused(false) }}>{client.full_name}<small>{client.email || client.phone || 'No contact details'}</small></button>) : null}{clientOptions.data && !clientOptions.data.length ? <p>No matching clients.</p> : null}</div> : null}</div></section> : <section className="artifact-client-section"><div className="artifact-walkin-grid">{(['first_name', 'last_name', 'phone', 'email'] as const).map((field) => <label className="artifact-field" key={field}><span>{field.replace('_', ' ')}</span><input placeholder={field === 'phone' ? '09XXXXXXXXX' : field === 'email' ? 'client@example.com' : field.replace('_', ' ')} type={field === 'email' ? 'email' : field === 'phone' ? 'tel' : 'text'} value={store.newClient[field]} aria-invalid={!!clientErrors[field]} onChange={(event) => store.setNewClient({ ...store.newClient, [field]: event.target.value })} />{clientErrors[field] ? <small>{clientErrors[field]}</small> : null}</label>)}</div></section>}
-        <div className="artifact-form-grid"><div className="artifact-field"><label>Services</label><button type="button" aria-label="Services" className="artifact-selector-button" onClick={() => store.setStep('services')}><span className="artifact-selector-main"><span className="artifact-selector-icon"><Plus aria-hidden="true" /></span><span className="artifact-selector-copy"><strong>{selectedServices.length ? selectedServices.map((item) => item.name).join(', ') : 'Add services'}</strong><small>{selectedServices.length ? `${selectedServices.length} selected` : 'None selected'}</small></span></span><span aria-hidden="true" className="artifact-selector-chevron">›</span></button></div><div className="artifact-field"><label>Products</label><button type="button" aria-label="Products" className="artifact-selector-button" onClick={() => store.setStep('products')}><span className="artifact-selector-main"><span className="artifact-selector-icon"><Package aria-hidden="true" /></span><span className="artifact-selector-copy"><strong>{selectedProducts.length ? selectedProducts.map((item) => item.name).join(', ') : 'Add products'}</strong><small>{selectedProducts.length ? `${selectedProducts.length} selected` : 'None selected'}</small></span></span><span aria-hidden="true" className="artifact-selector-chevron">›</span></button></div><AssignmentPicker label="Piercer" placeholder="Search or choose piercer..." options={piercers.data ?? []} value={piercerSearch} selected={piercer} onValueChange={(value) => { setPiercerSearch(value); setPiercer(null) }} onSelect={(option) => { setPiercer(option); setPiercerSearch(option.name) }} /><AssignmentPicker label="Station" placeholder="Search or choose station..." options={stations.data ?? []} value={stationSearch} selected={station} onValueChange={(value) => { setStationSearch(value); setStation(null) }} onSelect={(option) => { setStation(option); setStationSearch(option.name) }} /></div>
+        <div className="artifact-form-grid">
+          <div className="artifact-field"><label>Services</label><button type="button" aria-label="Services" className="artifact-selector-button" onClick={() => { setPiercer(null); setPiercerSearch(''); store.setStep('services') }}><span className="artifact-selector-main"><span className="artifact-selector-icon"><Plus aria-hidden="true" /></span><span className="artifact-selector-copy"><strong>{selectedServices.length ? selectedServices.map((item) => item.name).join(', ') : 'Add services'}</strong><small>{selectedServices.length ? `${selectedServices.length} selected` : 'None selected'}</small></span></span><span aria-hidden="true" className="artifact-selector-chevron">›</span></button></div>
+          <div className="artifact-field"><label>Products</label><button type="button" aria-label="Products" className="artifact-selector-button" onClick={() => store.setStep('products')}><span className="artifact-selector-main"><span className="artifact-selector-icon"><Package aria-hidden="true" /></span><span className="artifact-selector-copy"><strong>{selectedProducts.length ? selectedProducts.map((item) => item.name).join(', ') : 'Add products'}</strong><small>{selectedProducts.length ? `${selectedProducts.length} selected` : 'None selected'}</small></span></span><span aria-hidden="true" className="artifact-selector-chevron">›</span></button></div>
+          <AssignmentPicker label="Piercer" placeholder="Search or choose piercer..." options={piercers.data ?? []} value={piercerSearch} selected={assignedPiercer} onValueChange={(value) => { setPiercerSearch(value); setPiercer(null) }} onSelect={(option) => { setPiercer(option); setPiercerSearch(option.name); const defaultStation = stations.data?.find((item) => item.id === option.default_station_id); if (defaultStation) { setStation(defaultStation); setStationSearch(defaultStation.name) } }} />
+          <AssignmentPicker label="Station" placeholder="Search or choose station..." options={stations.data ?? []} value={stationSearch} selected={station} onValueChange={(value) => { setStationSearch(value); setStation(null) }} onSelect={(option) => { setStation(option); setStationSearch(option.name) }} />
+        </div>
+        {piercers.isError ? <p role="alert" className="dashboard-error">{piercers.error.message}</p> : null}
+        {store.serviceIds.length > 0 && piercers.data && !piercers.data.length ? <p role="status" className="dashboard-error">No piercer is qualified and currently available for all selected services.</p> : null}
         <p className="artifact-rule-box">Choose at least one service or product. Service transactions require a client, piercer, station, and signed waiver. Product-only purchases proceed directly to payment.</p>{formError ? <p role="alert" className="dashboard-error">{formError}</p> : null}
         <div className="artifact-action-row"><button type="button" className="artifact-primary-btn" disabled={busy} onClick={() => void proceedFromDetails()}>Create Transaction Preview</button></div>
       </div>

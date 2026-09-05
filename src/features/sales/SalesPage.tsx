@@ -54,9 +54,9 @@ function SalesWorkspace() {
           <div className={metricGridThree}>
             <MetricCard
               icon={<CircleDollarSign />}
-              label="Collected revenue"
-              value={formatMoney(metrics.data.collected)}
-              detail="Payments on completed transactions"
+              label="Net revenue"
+              value={formatMoney(metrics.data.net_revenue)}
+              detail="Completed sales after adjustments"
             />
             <MetricCard
               icon={<ShoppingBag />}
@@ -66,9 +66,9 @@ function SalesWorkspace() {
             />
             <MetricCard
               icon={<Sparkles />}
-              label="Service sales"
-              value={metrics.data.service_sales}
-              detail="Completed transactions containing a service"
+              label="Adjustments"
+              value={formatMoney(metrics.data.adjustments)}
+              detail="Refunds and voids"
             />
           </div>
         ) : null}
@@ -127,7 +127,7 @@ function SalesWorkspace() {
         </div>
 
         <p className="mx-4 my-2.5 rounded-[10px] border border-dashed border-[#c88f6e] bg-[#fff3d8] p-2.5 text-[10px] text-[#755448]">
-          <strong>No Draft sales:</strong> this page contains completed financial records only. Refunds and voids remain outside Phase 6.
+          <strong>No Draft sales:</strong> this page contains completed financial records and their appended refund or void adjustments. Unpaid operational transactions remain on Dashboard.
         </p>
 
         {sales.isPending ? <p role="status" className="sales-message">Loading completed sales…</p> : null}

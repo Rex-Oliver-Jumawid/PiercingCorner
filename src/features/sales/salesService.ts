@@ -1,6 +1,6 @@
 import { getSupabaseClient } from '../../lib/supabase/client'
-import { parseSaleItems, parseSalePayments, SALES_PAGE_SIZE } from './salesModel'
-import type { CompletedSale, CompletedSaleDetail, SaleFilters } from './salesModel'
+import { parseFinancialStatus, parseSaleAdjustments, parseSaleItems, parseSalePayments, SALES_PAGE_SIZE } from './salesModel'
+import type { CompletedSale, CompletedSaleDetail, SaleFilters, TransactionAdjustmentType } from './salesModel'
 
 export async function getSalesMetrics(signal: AbortSignal) {
   const { data, error } = await getSupabaseClient().rpc('get_sales_metrics').abortSignal(signal).single()
@@ -18,7 +18,12 @@ export async function listCompletedSales(filters: SaleFilters, page: number, sig
   }, { count: 'exact' }).range(page * pageSize, (page + 1) * pageSize - 1).abortSignal(signal)
   if (error) throw new Error('Unable to load completed sales. Please try again.')
   return {
-    rows: (data ?? []).map((row): CompletedSale => ({ ...row, reference_code: row.reference_code || 'Unreferenced transaction', items: parseSaleItems(row.items) })),
+    rows: (data ?? []).map((row): CompletedSale => ({
+      ...row,
+      reference_code: row.reference_code || 'Unreferenced transaction',
+      financial_status: parseFinancialStatus(row.financial_status),
+      items: parseSaleItems(row.items),
+    })),
     count: count ?? 0,
   }
 }
@@ -26,7 +31,33 @@ export async function listCompletedSales(filters: SaleFilters, page: number, sig
 export async function getCompletedSale(id: string, signal: AbortSignal): Promise<CompletedSaleDetail | null> {
   const { data, error } = await getSupabaseClient().rpc('get_completed_sale', { target_transaction_id: id }).abortSignal(signal).maybeSingle()
   if (error) throw new Error('Unable to load sale details. Please try again.')
-  return data ? { ...data, reference_code: data.reference_code || 'Unreferenced transaction', items: parseSaleItems(data.items), payments: parseSalePayments(data.payments) } : null
+  return data ? {
+    ...data,
+    reference_code: data.reference_code || 'Unreferenced transaction',
+    financial_status: parseFinancialStatus(data.financial_status),
+    items: parseSaleItems(data.items),
+    payments: parseSalePayments(data.payments),
+    adjustment_history: parseSaleAdjustments(data.adjustment_history),
+  } : null
+}
+
+export async function cancelCompletedTransaction(
+  transactionId: string,
+  adjustmentType: TransactionAdjustmentType,
+  reason: string,
+) {
+  const { data, error } = await getSupabaseClient().rpc('cancel_completed_transaction', {
+    target_transaction_id: transactionId,
+    selected_adjustment_type: adjustmentType,
+    cancellation_reason: reason,
+  }).single()
+  if (error) {
+    if (error.message.includes('remaining refundable value')) {
+      throw new Error('This transaction has no remaining value to refund or void.')
+    }
+    throw new Error('Unable to cancel this transaction. Please try again.')
+  }
+  return data
 }
 
 export async function getSaleWaiver(transactionId: string, signal: AbortSignal) {

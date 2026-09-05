@@ -41,6 +41,7 @@ export interface ClientOption {
 export interface StudioResourceOption {
   id: string
   name: string
+  default_station_id?: string | null
 }
 
 export interface NewClientDraft {

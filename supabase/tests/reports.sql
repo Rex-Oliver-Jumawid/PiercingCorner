@@ -37,20 +37,33 @@ update public.transactions set completed_at = case id
   when '60000000-0000-0000-0000-000000000040' then '2026-08-31 10:00:00+08'::timestamptz
   when '60000000-0000-0000-0000-000000000041' then '2026-09-01 11:00:00+08'::timestamptz
   when '60000000-0000-0000-0000-000000000042' then '2026-09-02 16:00:00+08'::timestamptz end
-where status = 'completed';
+where id in (
+  '60000000-0000-0000-0000-000000000040',
+  '60000000-0000-0000-0000-000000000041',
+  '60000000-0000-0000-0000-000000000042'
+);
 alter table public.transactions enable trigger transactions_set_history_facts;
 
 set local role authenticated;
 select set_config('request.jwt.claim.role','authenticated',true);
 select set_config('request.jwt.claim.sub','60000000-0000-0000-0000-000000000001',true);
 
-select pg_temp.assert_true((select collected = 650 and completed_transactions = 3 and service_sales = 2 from public.get_sales_metrics()), 'sales metrics must use completed payment facts and count service transactions');
+select pg_temp.assert_true((select net_revenue = 650 and completed_transactions = 3 and adjustments = 0 from public.get_sales_metrics()), 'sales metrics must start from completed payment facts without adjustments');
 select pg_temp.assert_true((select count(*) = 2 from public.search_completed_sales('formula','all',null,null,null)), 'sale search must be literal over the client snapshot');
 select pg_temp.assert_true((select count(*) = 2 from public.search_completed_sales('','product',null,null,null)), 'product filter must include product and mixed transactions');
 select pg_temp.assert_true((select count(*) = 1 from public.search_completed_sales('','all','gcash','2026-09-01','2026-09-02')), 'payment and optional report dates must filter on completed sales');
 select pg_temp.assert_true((select revenue = 550 and completed_transactions = 2 and service_transactions = 1 and unique_clients = 2 and repeat_clients = 1 and round(repeat_client_rate,1) = 50.0 and round(product_attach_rate,1) = 100.0 from public.get_report_summary('2026-09-01','2026-09-02')), 'report summary formulas must match the approved definitions');
 select pg_temp.assert_true((select completed_quantity = 1 and revenue = 300 from public.get_report_top_services('2026-09-01','2026-09-02') limit 1), 'top services must use completed line snapshots');
 select pg_temp.assert_true((select sum(total_visits) = 2 and sum(represented_days) = 2 from public.get_report_weekday_traffic('2026-09-01','2026-09-02')), 'weekday traffic must count distinct client-day visits');
+
+select public.cancel_completed_transaction('60000000-0000-0000-0000-000000000041', 'refund', 'Customer requested a refund');
+select pg_temp.assert_true((select count(*) = 1 from public.transaction_adjustments where transaction_id = '60000000-0000-0000-0000-000000000041'), 'Owner must read the appended adjustment');
+do $$ begin begin insert into public.transaction_adjustments (transaction_id, adjustment_type, amount, reason) values ('60000000-0000-0000-0000-000000000042', 'void', 1, 'Denied direct insert'); raise exception 'direct adjustment insert unexpectedly succeeded'; exception when insufficient_privilege then null; end; end $$;
+select pg_temp.assert_true((select net_revenue = 450 and completed_transactions = 3 and adjustments = 200 from public.get_sales_metrics()), 'sales metrics must subtract immutable adjustments');
+select pg_temp.assert_true((select financial_status = 'refund' and adjustments = 200 and net_total = 0 from public.search_completed_sales('TXN-PRODUCT','all',null,null,null)), 'sales search must derive refunded status and net total');
+select pg_temp.assert_true((select financial_status = 'refund' and adjustments = 200 and net_total = 0 and jsonb_array_length(adjustment_history) = 1 from public.get_completed_sale('60000000-0000-0000-0000-000000000041')), 'sale details must include immutable adjustment history');
+select pg_temp.assert_true((select revenue = 350 from public.get_report_summary('2026-09-01','2026-09-02')), 'report revenue must be net of adjustments');
+do $$ begin begin perform public.cancel_completed_transaction('60000000-0000-0000-0000-000000000041', 'void', 'Second cancellation'); raise exception 'a fully adjusted transaction was cancelled twice'; exception when invalid_parameter_value then null; end; end $$;
 
 reset role;
 insert into public.transactions (id,reference_code,client_id,status,created_by) values ('60000000-0000-0000-0000-000000000044','TXN-STAMP','60000000-0000-0000-0000-000000000011','pending','60000000-0000-0000-0000-000000000001');
@@ -65,6 +78,8 @@ set local role authenticated;
 select set_config('request.jwt.claim.role','authenticated',true);
 select set_config('request.jwt.claim.sub','60000000-0000-0000-0000-000000000002',true);
 do $$ begin begin perform public.get_sales_metrics(); raise exception 'staff reports unexpectedly succeeded'; exception when insufficient_privilege then null; end; end $$;
+do $$ begin begin perform public.cancel_completed_transaction('60000000-0000-0000-0000-000000000042', 'void', 'Denied staff void'); raise exception 'staff cancellation unexpectedly succeeded'; exception when insufficient_privilege then null; end; end $$;
+select pg_temp.assert_true((select count(*) = 0 from public.transaction_adjustments), 'Staff must not read Owner financial adjustments');
 select set_config('request.jwt.claim.sub','60000000-0000-0000-0000-000000000003',true);
 do $$ begin begin perform public.get_owner_overview(); raise exception 'inactive reports unexpectedly succeeded'; exception when insufficient_privilege then null; end; end $$;
 

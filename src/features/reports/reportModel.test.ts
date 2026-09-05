@@ -28,7 +28,8 @@ describe('report date and CSV model', () => {
       id: 'sale-1', reference_code: 'TXN-1', client_name: '=HYPERLINK("bad")',
       recorded_by_name: '+Recorder', completed_at: '2026-09-05T02:00:00Z',
       items: [{ id: 'item-1', item_type: 'product', name: 'Comma, "quoted"', unit_price: 10, quantity: 1 }],
-      total: 10, paid: 10, payment_methods: ['cash'], has_service: false, has_product: true, has_waiver: false,
+      total: 10, paid: 10, adjustments: 0, net_total: 10, financial_status: 'completed',
+      payment_methods: ['cash'], has_service: false, has_product: true, has_waiver: false,
     }
     const csv = buildSalesCsv([sale])
     expect(csv.startsWith('\uFEFF')).toBe(true)

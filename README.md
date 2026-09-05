@@ -18,6 +18,10 @@ duplicate warnings, and read-only transaction/payment history for both roles.
 The Owner-only Studio page now provides the service and product catalogs used by
 future transaction workflows, including search, create, edit, pricing, optional
 descriptions, and reversible active/inactive status management.
+Studio also persists standard hours, piercer profiles, service qualifications,
+weekly availability, and dated closures or reduced-hours exceptions. Settings
+provides station administration, and new service transactions accept only a
+currently available piercer qualified for every selected service.
 The Owner/Staff Dashboard now lists and searches today's Manila transactions,
 supports open-status operations, and provides a Zustand-driven Record Sale flow.
 Product-only sales and eligible existing-transaction finalization use atomic
@@ -28,10 +32,13 @@ and continue directly to full payment. Pending transactions provide recovery
 when signing persistence or payment is interrupted. Owner Overview, Sales, and
 Reports now derive completion metrics, immutable completed-sale history, and
 Manila-range analytics from PostgreSQL. Reports can export formula-safe CSV.
+Owners can cancel completed Sales transactions through immutable full refund or
+void adjustments with required reasons; financial summaries report net revenue
+without rewriting payments.
 
 Deliberately not implemented: Google OAuth, public booking, public waiver links,
-guardian/minor consent, refunds/voids, XLSX export,
-studio-hours analytics and the remaining Studio scheduling model. The authenticated shell now
+guardian/minor consent, partial refunds/adjustment reversals, XLSX export,
+studio-hours analytics, appointments, and a Calendar scheduling view. The authenticated shell now
 uses the approved responsive application design.
 
 ## Stack
@@ -110,6 +117,8 @@ Clients contract, [Phase 3](docs/phase-3.md) for catalog management, and
 [Phase 4](docs/phase-4.md) for the Dashboard transaction workflow, and
 [Phase 5](docs/phase-5.md) for durable consent and private PDF storage, and
 [Phase 6](docs/phase-6.md) for completed Sales, Owner Overview, and Reports.
+See [Studio scheduling](docs/studio-scheduling.md) for hours, qualifications,
+availability, exceptions, and station administration.
 
 ## Architecture
 

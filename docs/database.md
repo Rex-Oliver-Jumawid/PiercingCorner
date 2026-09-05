@@ -33,9 +33,14 @@ it leaves no sample accounts or business records in the local database.
 | `clients` | Minimal walk-in-friendly client record. |
 | `services` / `products` | Deactivatable catalogs with exact `numeric(12,2)` prices. |
 | `piercer_profiles` / `stations` | Deactivatable Studio resources assigned to service transactions. |
+| `studio_hours` | The seven recurring Manila operating-day windows. |
+| `piercer_service_qualifications` | Services each Studio piercer may be assigned to perform. |
+| `piercer_availability` | One recurring availability interval per piercer and weekday. |
+| `studio_exceptions` | Dated all-day closures or reduced-hours overrides. |
 | `transactions` | Operational Dashboard transaction with immutable client snapshot and first completion timestamp; not an appointment or draft sale. |
 | `transaction_items` | Service/product lines with name and price snapshots. |
 | `payments` | Recorded payment facts; never gateway credentials. |
+| `transaction_adjustments` | Immutable Owner-recorded full refund or void facts for completed transactions. |
 | `waiver_templates` | Append-only numbered consent-template versions. |
 | `waivers` | One immutable signed consent record per transaction with private Storage paths. |
 
@@ -48,8 +53,8 @@ inactive instead of being normally deleted.
 ## Role model, page access, and RLS
 
 Application roles are the closed PostgreSQL enum `owner` and `staff`. A piercer
-is not an access role. Future piercer profiles, qualifications, stations,
-availability, and assignments belong to the separate Studio domain.
+is not an access role. Piercer profiles, qualifications, stations, availability,
+and assignments belong to the separate Studio domain.
 
 Page access is not table access. Future authorization is navigation visibility →
 route authorization → application-action authorization → RLS. Route guards must
@@ -69,6 +74,8 @@ Calendar, or Overview pages.
 | Staff accounts | Read metadata; mutation deferred to secure account management | Read own metadata only |
 | Clients | Read/create/update | Read/create/update |
 | Services / products | Read/create/update and deactivate | Read active catalog rows only |
+| Piercer profiles / stations | Read/create/update and deactivate | Read active rows for Dashboard assignment |
+| Studio hours, qualifications, availability, exceptions | Read/create/update as applicable | Read only for checked Dashboard assignment |
 | Transactions | Read/create and edit open operational records | Same, through Dashboard only |
 | Transaction items | Read; add/edit/remove on open transactions | Same, through Dashboard only |
 | Payments | Read/record on open transactions | Read/record through Dashboard |
@@ -102,8 +109,10 @@ historical receipts from catalog renames, reprices, and deactivation.
 
 Payments are positive recorded facts with an optional external reference. No
 card, GCash, Maya, or banking credentials are stored. Multiple payments are
-allowed. Refunds and voids remain deferred and must append adjustments rather
-than rewrite original payment rows.
+allowed. Refunds and voids append immutable `transaction_adjustments` rather
+than rewriting original payment rows. The current cancellation workflow records
+the full remaining refundable value and requires an Owner-supplied reason;
+partial adjustments and adjustment reversals remain deferred.
 
 ## Phase 4 transaction interfaces
 
@@ -130,6 +139,24 @@ These security-definer functions require an active application account, pin an e
 They do not expose administrative credentials to the browser. Phase 4 deliberately
 supports one full payment; the table's broader multiple-payment domain remains for a
 later reviewed workflow.
+
+## Studio scheduling
+
+`get_assignable_piercers(uuid[])` returns active profiles qualified for every
+selected active service only when the PostgreSQL server clock falls within the
+Manila Studio Hours, the profile's recurring availability, and any applicable
+dated exception. It includes an active default station when one exists.
+
+`accept_new_service_waiver(...)` rechecks those rules immediately before creating
+the signed Pending service transaction. This check occurs once at creation so a
+persisted transaction can finish payment recovery after hours. A transaction-item
+trigger checks newly inserted assigned service lines against current qualifications,
+while unchanged legacy/open lines remain completable.
+
+Owners manage all Studio configuration under RLS. Availability must fit within
+open Studio Hours, conflicting hour reductions are rejected, and reduced-hours
+exceptions must narrow the normal window. Calendar remains a retained placeholder;
+transactions are still operational records rather than appointments.
 
 ## Phase 2 client read interfaces
 
@@ -196,7 +223,8 @@ traffic. Each is `security definer`, uses an empty `search_path`, and independen
 requires `is_owner()`. Sales never passes date filters; Reports passes inclusive
 Manila dates to the shared completed-sales projection.
 
-Revenue is the sum of recorded payments belonging to completed transactions.
+Revenue is recorded payments belonging to completed transactions minus their
+refund and void adjustments.
 Transaction totals remain derived from immutable item snapshots. Report exports
 are generated in the browser as UTF-8 BOM CSV after spreadsheet-formula
 neutralization and RFC 4180 serialization; no public financial export endpoint

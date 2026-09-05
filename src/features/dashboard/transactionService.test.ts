@@ -5,6 +5,7 @@ import type { Database } from '../../types/database'
 import {
   acceptNewServiceWaiver,
   finalizeTransaction,
+  listAssignablePiercers,
   listTransactions,
   prepareWaiverSigning,
   recordProductSale,
@@ -47,6 +48,15 @@ describe('transaction Supabase service boundary', () => {
     await listTransactions('%_(),"', controller.signal)
     expect(request().url.pathname).toBe('/rest/v1/rpc/search_dashboard_transactions')
     expect(request().body).toEqual({ search_text: '%_(),"' })
+    expect(request().init?.signal).toBe(controller.signal)
+  })
+
+  it('requests server-derived assignable piercers for all selected services', async () => {
+    response([{ id: 'piercer-1', name: 'Ana', default_station_id: 'station-1' }])
+    const controller = new AbortController()
+    await listAssignablePiercers(['service-1', 'service-2'], controller.signal)
+    expect(request().url.pathname).toBe('/rest/v1/rpc/get_assignable_piercers')
+    expect(request().body).toEqual({ selected_service_ids: ['service-1', 'service-2'] })
     expect(request().init?.signal).toBe(controller.signal)
   })
 

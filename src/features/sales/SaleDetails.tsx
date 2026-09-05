@@ -3,7 +3,8 @@ import { X } from 'lucide-react'
 import { formatMoney } from '../dashboard/transactionModel'
 import { useCompletedSale, useSaleWaiver } from './salesQueries'
 import { downloadSaleWaiver } from './salesService'
-import { manilaDateTime, paymentMethodLabel } from './salesModel'
+import { financialStatusLabel, manilaDateTime, paymentMethodLabel } from './salesModel'
+import { CancelTransactionDialog } from './CancelTransactionDialog'
 import { useRightSideDrawer } from '../../components/ui/useRightSideDrawer'
 import { eyebrow } from '../../components/ui/studio-styles'
 import {
@@ -16,7 +17,9 @@ export function SaleDetails({ id, onClose }: { id: string; onClose: () => void }
   const detail = useCompletedSale(id)
   const waiver = useSaleWaiver(id, detail.data?.has_waiver ?? false)
   const [error, setError] = useState<string | null>(null)
+  const [cancelling, setCancelling] = useState(false)
   const {
+    dialog,
     setDialog,
     closing,
     requestClose,
@@ -52,7 +55,9 @@ export function SaleDetails({ id, onClose }: { id: string; onClose: () => void }
       className={`sale-detail-dialog right-side-drawer${closing ? ' is-closing' : ''} ${operationDialog} w-[min(640px,100%)] p-0`}
       aria-label="Completed sale details"
       onCancel={handleCancel}
-      onPointerDown={handleBackdropPointerDown}
+      onPointerDown={(event) => {
+        if (!cancelling) handleBackdropPointerDown(event)
+      }}
     >
       <header className="sticky top-0 z-10 flex items-start justify-between border-b border-dashed border-[#c88f6e] bg-[#fff5df] px-[21px] py-[19px]">
         <div>
@@ -83,7 +88,9 @@ export function SaleDetails({ id, onClose }: { id: string; onClose: () => void }
         {detail.data ? (
           <>
             <div className="flex items-center justify-between gap-3">
-              <span className={statusClasses('completed')}>Completed</span>
+              <span className={statusClasses(detail.data.financial_status === 'completed' ? 'completed' : detail.data.financial_status === 'refund' ? 'confirmed' : 'cancelled')}>
+                {financialStatusLabel(detail.data.financial_status)}
+              </span>
               <span className="text-[10px] font-extrabold text-studio-muted">
                 {paymentMethodLabel(detail.data.payments.map((p) => p.method))}
               </span>
@@ -128,6 +135,31 @@ export function SaleDetails({ id, onClose }: { id: string; onClose: () => void }
                 <span>Total</span>
                 <span className="font-display text-sm text-hippy-ink">{formatMoney(detail.data.total)}</span>
               </footer>
+            </section>
+
+            <section className="rounded-[14px] border-[1.5px] border-hippy-ink bg-[#fff9eb] p-3.5 shadow-[2px_2px_0_#3b2923]">
+              <h3 className="m-0 mb-2 font-display text-[15px] font-bold text-hippy-ink">Sale summary</h3>
+              <dl className="sale-adjustment-summary m-0 grid grid-cols-4 gap-px overflow-hidden rounded-[12px] border border-hippy-ink bg-hippy-ink max-[520px]:grid-cols-2 [&>div]:bg-[#fffdf7] [&>div]:p-2.5 [&_dt]:text-[8px] [&_dt]:font-black [&_dt]:text-[#a34d30] [&_dt]:uppercase [&_dd]:m-0 [&_dd]:mt-1 [&_dd]:text-[11px] [&_dd]:font-bold">
+                <div><dt>Total</dt><dd>{formatMoney(detail.data.total)}</dd></div>
+                <div><dt>Paid</dt><dd>{formatMoney(detail.data.paid)}</dd></div>
+                <div><dt>Adjustments</dt><dd>{formatMoney(detail.data.adjustments)}</dd></div>
+                <div><dt>Net total</dt><dd>{formatMoney(detail.data.net_total)}</dd></div>
+              </dl>
+
+              {detail.data.adjustment_history.length ? (
+                <ul className="m-0 mt-3 flex list-none flex-col gap-2 p-0" aria-label="Adjustment history">
+                  {detail.data.adjustment_history.map((adjustment) => (
+                    <li key={adjustment.id} className="rounded-[10px] border border-dashed border-[#c88f6e] bg-[#fffdf7] p-2.5 text-[10px]">
+                      <div className="flex justify-between gap-3">
+                        <strong className="capitalize text-hippy-ink">{adjustment.type}</strong>
+                        <strong className="text-hippy-ink">{formatMoney(adjustment.amount)}</strong>
+                      </div>
+                      <p className="my-1 text-[#695249]">{adjustment.reason}</p>
+                      <small className="text-[8px] text-studio-muted">{adjustment.recorded_by_name} · {manilaDateTime(adjustment.created_at)}</small>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </section>
 
             <section className="rounded-[14px] border-[1.5px] border-hippy-ink bg-[#fff9eb] p-3.5 shadow-[2px_2px_0_#3b2923]">
@@ -185,6 +217,24 @@ export function SaleDetails({ id, onClose }: { id: string; onClose: () => void }
             ) : null}
 
             {error ? <p role="alert" className="sales-error">{error}</p> : null}
+
+            {detail.data.net_total > 0 ? (
+              <section className="border-t border-dashed border-[#c88f6e] pt-3">
+                <button
+                  type="button"
+                  className={`${dashButton({ variant: 'secondary' })} !bg-[#f0c0ad] !text-[#743b2d]`}
+                  onClick={() => setCancelling(true)}
+                >
+                  Cancel Transaction
+                </button>
+              </section>
+            ) : (
+              <p className="m-0 text-[10px] text-studio-muted">
+                {detail.data.financial_status === 'void'
+                  ? 'This transaction has been voided.'
+                  : 'This transaction has been fully refunded.'}
+              </p>
+            )}
           </>
         ) : null}
       </div>
@@ -198,6 +248,15 @@ export function SaleDetails({ id, onClose }: { id: string; onClose: () => void }
           Done
         </button>
       </footer>
+
+      {detail.data && cancelling ? (
+        <CancelTransactionDialog
+          open
+          sale={detail.data}
+          portalContainer={dialog}
+          onOpenChange={setCancelling}
+        />
+      ) : null}
     </dialog>
   )
 }

@@ -57,16 +57,12 @@ export async function listActiveCatalog(
   return data ?? []
 }
 
-export async function listActivePiercers(signal: AbortSignal): Promise<StudioResourceOption[]> {
+export async function listAssignablePiercers(serviceIds: string[], signal: AbortSignal): Promise<StudioResourceOption[]> {
   const { data, error } = await getSupabaseClient()
-    .from('piercer_profiles')
-    .select('id, display_name')
-    .eq('active', true)
-    .order('display_name')
-    .order('id')
+    .rpc('get_assignable_piercers', { selected_service_ids: serviceIds })
     .abortSignal(signal)
-  if (error) throw new Error('Unable to load piercers. Please try again.')
-  return (data ?? []).map((piercer) => ({ id: piercer.id, name: piercer.display_name }))
+  if (error) throw new Error('Unable to load currently assignable piercers. Please try again.')
+  return data ?? []
 }
 
 export async function listActiveStations(signal: AbortSignal): Promise<StudioResourceOption[]> {
@@ -184,9 +180,12 @@ export async function acceptNewServiceWaiver(input: {
   })
   if (error || !data?.[0]) {
     const expired = error?.message.toLocaleLowerCase('en-PH').includes('expired')
+    const unavailable = error?.message.toLocaleLowerCase('en-PH').includes('not qualified and available')
     throw new Error(expired
       ? 'This waiver session expired. Reload the current terms and ask the client to sign again.'
-      : 'Could not establish the signed transaction. Your draft has been kept.')
+      : unavailable
+        ? 'The selected piercer is no longer qualified or available within the current Studio schedule.'
+        : 'Could not establish the signed transaction. Your draft has been kept.')
   }
   return data[0]
 }

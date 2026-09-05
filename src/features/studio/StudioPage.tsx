@@ -1,37 +1,23 @@
 import { useState } from 'react'
 import { useAuth } from '../auth/useAuth'
-import { CatalogCard } from './CatalogCard'
 import { CatalogEditor } from './CatalogEditor'
-import type { CatalogEntry, CatalogKind } from './catalogModel'
-import { featureView, panel, panelHead } from '../../components/ui/dashboard-styles'
+import { featureView } from '../../components/ui/dashboard-styles'
+import { StudioConfigurationView } from './StudioConfiguration'
+import type { StudioEditor } from './StudioConfiguration'
+import { useStudioConfiguration } from './studioQueries'
 import './studio.css'
 
-interface EditorState {
-  kind: CatalogKind
-  entry?: CatalogEntry
-}
-
 function StudioWorkspace() {
-  const [editor, setEditor] = useState<EditorState | null>(null)
+  const [editor, setEditor] = useState<StudioEditor | null>(null)
+  const configuration = useStudioConfiguration()
 
   return (
-    <section className={featureView}>
-      <div className="flex items-center justify-between gap-3">
-        <span className="studio-owner-pill">? Owner only</span>
-      </div>
-      <section className={panel} aria-labelledby="catalog-title">
-        <header className={panelHead}>
-          <div>
-            <h3 id="catalog-title">Services &amp; Products</h3>
-            <p>Manage pricing and availability without changing historical transaction snapshots.</p>
-          </div>
-        </header>
-        <div className="catalog-grid">
-          <CatalogCard kind="service" onEdit={(kind, entry) => setEditor({ kind, entry })} />
-          <CatalogCard kind="product" onEdit={(kind, entry) => setEditor({ kind, entry })} />
-        </div>
-      </section>
-      {editor ? (
+    <section className={`studio-page ${featureView}`}>
+      <div className="studio-intro"><div><p className="studio-eyebrow">HOURS &amp; SCHEDULING</p><h2>Studio</h2><p>Configure Studio Hours, piercer profiles, catalogs, qualifications, availability, and closures.</p></div><span className="studio-owner-pill">Owner only</span></div>
+      {configuration.isPending ? <p role="status" className="studio-empty">Loading Studio configuration…</p> : null}
+      {configuration.isError ? <p role="alert" className="catalog-error">{configuration.error.message}</p> : null}
+      {configuration.data ? <StudioConfigurationView configuration={configuration.data} editor={editor} setEditor={setEditor} /> : null}
+      {editor?.mode === 'catalog' ? (
         <CatalogEditor
           kind={editor.kind}
           entry={editor.entry}

@@ -1,0 +1,23 @@
+.settings-stations { overflow: hidden; }
+.settings-station-row { min-height: 60px; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 12px; border-top: 1px dashed #d8b89b; padding: 10px 16px; }
+.settings-station-row:first-child { border-top: 0; }
+.settings-station-row strong, .settings-station-row small { display: block; }
+.settings-station-row small { margin-top: 3px; color: #756861; font-size: 10px; }
+.settings-status { border: 1px solid currentColor; border-radius: 999px; padding: 4px 8px; font-size: 9px; font-weight: 900; text-transform: uppercase; }
+.settings-status.active { background: #d8e5cf; color: #315342; }
+.settings-status.inactive { background: #f7d2cb; color: #743b2d; }
+.settings-dialog { width: min(520px, calc(100% - 32px)); margin: auto; border: 2px solid #3b2923; border-radius: 20px; background: #fff5df; padding: 0; box-shadow: 8px 8px 0 #3b2923; color: #3b2923; }
+.settings-dialog::backdrop { background: #2d181277; backdrop-filter: blur(4px); }
+.settings-dialog > header { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px dashed #c88f6e; padding: 18px 20px; }
+.settings-dialog h2, .settings-dialog p { margin: 0; }
+.settings-dialog header p { color: #a04b2f; font-size: 9px; font-weight: 900; letter-spacing: 1px; }
+.settings-dialog header small { color: #756861; }
+.settings-dialog header button { width: 34px; height: 34px; border: 1.5px solid #3b2923; border-radius: 9px; background: #fad4b2; font-size: 18px; }
+.settings-dialog fieldset { display: grid; gap: 13px; border: 0; padding: 20px; }
+.settings-dialog label { display: grid; gap: 6px; font-size: 10px; font-weight: 900; text-transform: uppercase; }
+.settings-dialog input, .settings-dialog select { min-height: 40px; border: 1.5px solid #3b2923; border-radius: 10px; background: #fffdf7; padding: 8px 10px; box-shadow: 2px 2px 0 #3b2923; }
+.settings-dialog footer { display: flex; justify-content: flex-end; gap: 9px; border-top: 1px dashed #c88f6e; padding: 13px 20px; }
+.settings-dialog footer button, .settings-station-row button { min-height: 34px; border: 1.5px solid #3b2923; border-radius: 9px; background: #fff7e3; padding: 6px 11px; box-shadow: 1px 1px 0 #3b2923; font-weight: 800; }
+.settings-dialog footer .primary { background: #df682c; color: white; }
+.settings-error { margin: 0 20px 12px; color: #a43322; font-size: 11px; }
+
