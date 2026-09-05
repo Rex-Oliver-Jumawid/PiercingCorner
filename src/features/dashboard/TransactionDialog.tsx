@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog'
+import { SelectField } from '../../components/ui/FormControls'
 import { useRightSideDrawer } from '../../components/ui/useRightSideDrawer'
 import {
   useActiveCatalog,
@@ -176,19 +177,14 @@ export function TransactionDialog({
         {open ? (
           <section className="transaction-actions-card">
             <h3>Transaction actions</h3>
-            <label className="dashboard-field">
-              <span>Completion status</span>
-              <select
-                value={transaction.status}
-                disabled={mutation.isPending}
-                onChange={(event) =>
-                  mutation.mutate({ status: event.target.value as 'pending' | 'ongoing' })
-                }
-              >
-                <option value="pending">Pending</option>
-                <option value="ongoing">Ongoing</option>
-              </select>
-            </label>
+            <SelectField
+              className="dashboard-field"
+              label="Completion status"
+              value={transaction.status as 'pending' | 'ongoing'}
+              disabled={mutation.isPending}
+              options={[{ value: 'pending', label: 'Pending' }, { value: 'ongoing', label: 'Ongoing' }]}
+              onValueChange={(status) => mutation.mutate({ status })}
+            />
             <div className="transaction-action-row">
               <button
                 type="button"
@@ -435,11 +431,7 @@ export function FinalizeDialog({
         <form onSubmit={submit}>
           <div className="transaction-dialog-body payment-body">
             <section className="payment-total"><small>Amount to be paid</small><strong>{formatMoney(total)}</strong></section>
-            <label className="dashboard-field"><span>Payment method</span>
-              <select value={payment.method} onChange={(event) => setPayment({ method: event.target.value as PaymentDraft['method'], reference: event.target.value === 'cash' ? '' : payment.reference })}>
-                <option value="cash">Cash</option><option value="gcash">GCash</option><option value="maya">Maya</option><option value="bank_transfer">Bank transfer</option><option value="card">Card</option><option value="other">Other</option>
-              </select>
-            </label>
+            <SelectField className="dashboard-field" label="Payment method" value={payment.method} options={[{ value: 'cash', label: 'Cash' }, { value: 'gcash', label: 'GCash' }, { value: 'maya', label: 'Maya' }, { value: 'bank_transfer', label: 'Bank transfer' }, { value: 'card', label: 'Card' }, { value: 'other', label: 'Other' }]} onValueChange={(method) => setPayment({ method, reference: method === 'cash' ? '' : payment.reference })} />
             {payment.method !== 'cash' ? <label className="dashboard-field"><span>Reference number</span><input value={payment.reference} onChange={(event) => setPayment({ ...payment, reference: event.target.value })} /></label> : null}
             {error ? <p role="alert" className="dashboard-error">{error}</p> : null}
             {mutation.isError ? <p role="alert" className="dashboard-error">{mutation.error.message}</p> : null}

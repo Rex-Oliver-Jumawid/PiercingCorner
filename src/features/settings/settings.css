@@ -58,7 +58,7 @@ fieldset.settings-panel-body { margin: 0; border: 0; }
 .settings-dialog header button { width: 34px; height: 34px; border: 1.5px solid #3b2923; border-radius: 9px; background: #fad4b2; font-size: 18px; }
 .settings-dialog fieldset { display: grid; gap: 13px; border: 0; padding: 20px; }
 .settings-dialog label { display: grid; gap: 6px; font-size: 10px; font-weight: 900; text-transform: uppercase; }
-.settings-dialog input, .settings-dialog select { min-height: 40px; border: 1.5px solid #3b2923; border-radius: 10px; background: #fffdf7; padding: 8px 10px; box-shadow: 2px 2px 0 #3b2923; }
+.settings-dialog input { min-height: 40px; border: 1.5px solid #3b2923; border-radius: 10px; background: #fffdf7; padding: 8px 10px; box-shadow: 2px 2px 0 #3b2923; }
 .settings-dialog footer { display: flex; justify-content: flex-end; gap: 9px; border-top: 1px dashed #c88f6e; padding: 13px 20px; }
 .settings-dialog footer button, .settings-station-row button { min-height: 34px; border: 1.5px solid #3b2923; border-radius: 9px; background: #fff7e3; padding: 6px 11px; box-shadow: 1px 1px 0 #3b2923; font-weight: 800; }
 .settings-dialog footer .primary { background: #df682c; color: white; }

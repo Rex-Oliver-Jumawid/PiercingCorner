@@ -618,8 +618,7 @@
   text-transform: uppercase;
 }
 
-.dashboard-field input,
-.dashboard-field select {
+.dashboard-field input {
   width: 100%;
   min-height: 42px;
   border: 1.5px solid var(--dashboard-ink);
@@ -632,8 +631,7 @@
   font-size: 11px;
 }
 
-.dashboard-field input:focus,
-.dashboard-field select:focus {
+.dashboard-field input:focus {
   border-color: var(--dashboard-orange);
   outline: 3px solid #df682c35;
 }

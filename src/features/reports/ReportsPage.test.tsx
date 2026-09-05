@@ -21,8 +21,8 @@ function renderPage() {
 describe('ReportsPage', () => {
   it('shows date controls and derivable analytics without studio-hours analytics', () => {
     renderPage()
-    expect(screen.getByLabelText('From')).toHaveAttribute('type', 'date')
-    expect(screen.getByLabelText('To')).toHaveAttribute('type', 'date')
+    expect(screen.getByRole('button', { name: 'From' })).toHaveTextContent(/\w{3} \d{1,2}, 2026/)
+    expect(screen.getByRole('button', { name: 'To' })).toHaveTextContent(/\w{3} \d{1,2}, 2026/)
     expect(screen.getByText('Repeat client rate')).toBeVisible()
     expect(screen.getByText('Product attach rate')).toBeVisible()
     expect(screen.queryByText(/open hour/i)).not.toBeInTheDocument()
@@ -30,8 +30,10 @@ describe('ReportsPage', () => {
 
   it('rejects a reversed custom range before applying it', () => {
     renderPage()
-    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-09-10' } })
-    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-09-01' } })
+    fireEvent.click(screen.getByRole('button', { name: 'From' }))
+    fireEvent.click(screen.getByRole('button', { name: /September 10/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'To' }))
+    fireEvent.click(screen.getByRole('button', { name: /September 1st/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
     expect(screen.getByRole('alert')).toHaveTextContent(/From date must be on or before/)
   })

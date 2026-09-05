@@ -7,6 +7,7 @@ import {
   ShoppingBag,
 } from 'lucide-react'
 import { MetricCard } from '../../components/ui/MetricCard'
+import { DateField } from '../../components/ui/FormControls'
 import {
   dashButton,
   dashField,
@@ -99,8 +100,8 @@ function ReportsWorkspace() {
     <section className={`reports-page ${featureView}`}>
 
       <section className={`${panel} flex flex-col gap-3 p-4`}>
-        <div className="flex flex-wrap items-center justify-between gap-3" aria-label="Report period presets">
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="reports-preset-toolbar">
+          <div className="report-presets" aria-label="Report period presets">
             {([
               ['today', 'Today'],
               ['week', 'This Week'],
@@ -110,7 +111,8 @@ function ReportsWorkspace() {
               <button
                 key={value}
                 type="button"
-                className={dashButton({ variant: preset === value ? 'primary' : 'secondary' })}
+                className={preset === value ? 'active' : undefined}
+                aria-pressed={preset === value}
                 onClick={() => choosePreset(value)}
               >
                 {label}
@@ -118,7 +120,8 @@ function ReportsWorkspace() {
             ))}
             <button
               type="button"
-              className={dashButton({ variant: preset === 'custom' ? 'primary' : 'secondary' })}
+              className={preset === 'custom' ? 'active' : undefined}
+              aria-pressed={preset === 'custom'}
               onClick={() => setPreset('custom')}
             >
               Custom Range
@@ -137,28 +140,24 @@ function ReportsWorkspace() {
         </div>
 
         <div className="flex flex-wrap items-end gap-3 border-t border-dashed border-[#dab08f] pt-3">
-          <label className={`${dashField} w-[160px]`}>
-            <span>From</span>
-            <input
-              type="date"
-              value={draft.from}
-              onChange={(event) => {
-                setPreset('custom')
-                setDraft({ ...draft, from: event.target.value })
-              }}
-            />
-          </label>
-          <label className={`${dashField} w-[160px]`}>
-            <span>To</span>
-            <input
-              type="date"
-              value={draft.to}
-              onChange={(event) => {
-                setPreset('custom')
-                setDraft({ ...draft, to: event.target.value })
-              }}
-            />
-          </label>
+          <DateField
+            className={`${dashField} w-[160px]`}
+            label="From"
+            value={draft.from}
+            onValueChange={(from) => {
+              setPreset('custom')
+              setDraft({ ...draft, from })
+            }}
+          />
+          <DateField
+            className={`${dashField} w-[160px]`}
+            label="To"
+            value={draft.to}
+            onValueChange={(to) => {
+              setPreset('custom')
+              setDraft({ ...draft, to })
+            }}
+          />
           <button
             type="button"
             className={dashButton({ variant: 'primary' })}

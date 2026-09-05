@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
+import { SelectField } from '../../components/ui/FormControls'
 import { useSaveCatalog } from './catalogQueries'
 import { validateCatalog } from './catalogModel'
 import type { CatalogDraft, CatalogEntry, CatalogKind } from './catalogModel'
@@ -17,7 +18,6 @@ export function CatalogEditor({
   const titleId = useId()
   const nameId = `${titleId}-name`
   const priceId = `${titleId}-price`
-  const statusId = `${titleId}-status`
   const descriptionId = `${titleId}-description`
   const [draft, setDraft] = useState<CatalogDraft>({
     name: entry?.name ?? '',
@@ -110,19 +110,13 @@ export function CatalogEditor({
             />
             {errors.price ? <small id={`${priceId}-error`}>{errors.price}</small> : null}
           </div>
-          <div className="catalog-field">
-            <label htmlFor={statusId}>Status</label>
-            <select
-              id={statusId}
-              value={draft.active ? 'active' : 'inactive'}
-              onChange={(event) =>
-                setDraft({ ...draft, active: event.target.value === 'active' })
-              }
-            >
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </div>
+          <SelectField
+            className="catalog-field"
+            label="Status"
+            value={draft.active ? 'active' : 'inactive'}
+            options={[{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }]}
+            onValueChange={(value) => setDraft({ ...draft, active: value === 'active' })}
+          />
           <div className="catalog-field catalog-wide">
             <label htmlFor={descriptionId}>Description (optional)</label>
             <textarea

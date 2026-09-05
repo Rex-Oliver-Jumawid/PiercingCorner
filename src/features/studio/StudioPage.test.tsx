@@ -56,7 +56,7 @@ beforeEach(() => {
     qualifications: [{ piercer_profile_id: 'piercer-1', service_id: 'service-1' }],
     availability: [{ piercer_profile_id: 'piercer-1', weekday: 1, starts_at: '10:00:00', ends_at: '18:00:00' }],
     exceptions: [],
-    services: [{ id: 'service-1', name: 'Lobe Piercing', active: true }],
+    services: [{ id: 'service-1', name: 'Lobe Piercing', active: true }, { id: 'service-2', name: 'Navel Piercing', active: true }],
     stations: [{ id: 'station-1', name: 'Station 1', active: true }],
   })
   vi.mocked(studioService.saveStudioHour).mockResolvedValue({ weekday: 1, is_open: true, opens_at: '11:00:00', closes_at: '20:00:00' })
@@ -146,9 +146,8 @@ describe('Studio catalog workflow', () => {
       await screen.findByRole('button', { name: 'Edit service Lobe Piercing' }),
     )
     const dialog = screen.getByRole('dialog', { name: 'Edit service' })
-    fireEvent.change(within(dialog).getByRole('combobox', { name: 'Status' }), {
-      target: { value: 'inactive' },
-    })
+    fireEvent.keyDown(within(dialog).getByRole('combobox', { name: 'Status' }), { key: 'ArrowDown' })
+    fireEvent.click(within(dialog).getByRole('option', { name: 'Inactive' }))
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }))
     await waitFor(() =>
       expect(service.saveCatalog).toHaveBeenCalledWith(
@@ -178,7 +177,9 @@ describe('Studio catalog workflow', () => {
     await screen.findByText('Studio Hours')
     fireEvent.click(screen.getAllByRole('button', { name: 'Edit' })[0])
     const dialog = screen.getByRole('dialog', { name: 'Edit Studio Hours' })
-    fireEvent.change(within(dialog).getByLabelText('Opens'), { target: { value: '11:00' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Opens' }))
+    fireEvent.change(within(dialog).getByRole('spinbutton', { name: 'Hour' }), { target: { value: '11' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Apply' }))
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }))
     await waitFor(() => expect(studioService.saveStudioHour).toHaveBeenCalledWith({ weekday: 1, isOpen: true, opensAt: '11:00', closesAt: '20:00' }, expect.anything()))
   })
@@ -191,5 +192,20 @@ describe('Studio catalog workflow', () => {
     fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Lobe Piercing' }))
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }))
     await waitFor(() => expect(studioService.replaceQualifications).toHaveBeenCalledWith('piercer-1', []))
+  })
+
+  it('filters a piercer service list without losing selections', async () => {
+    harness()
+    await screen.findAllByText('Ana Santos')
+    fireEvent.click(screen.getByRole('button', { name: 'Edit services' }))
+    const dialog = screen.getByRole('dialog', { name: 'Services Offered' })
+    fireEvent.change(within(dialog).getByRole('searchbox', { name: 'Search services' }), { target: { value: 'navel' } })
+    expect(within(dialog).getByRole('checkbox', { name: 'Navel Piercing' })).toBeVisible()
+    expect(within(dialog).queryByRole('checkbox', { name: 'Lobe Piercing' })).not.toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Navel Piercing' }))
+    fireEvent.change(within(dialog).getByRole('searchbox', { name: 'Search services' }), { target: { value: 'missing' } })
+    expect(within(dialog).getByText('No services match “missing”.')).toBeVisible()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }))
+    await waitFor(() => expect(studioService.replaceQualifications).toHaveBeenCalledWith('piercer-1', ['service-1', 'service-2']))
   })
 })
