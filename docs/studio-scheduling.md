@@ -8,6 +8,10 @@ transaction catalogs, recurring piercer availability, and dated closures or
 reduced-hours exceptions. Station administration is Owner-only under Settings.
 Piercer remains a Studio-domain profile and is not an application access role.
 
+Settings also provides the persisted singleton Business Profile, append-only
+waiver-template administration, and read-only account visibility. Secure staff
+account mutation and notification delivery infrastructure remain deferred.
+
 ## Scheduling rules
 
 - Weekly Studio Hours use Manila local time. Monday through Saturday initially

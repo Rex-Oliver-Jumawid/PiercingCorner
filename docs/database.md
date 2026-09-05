@@ -30,6 +30,7 @@ it leaves no sample accounts or business records in the local database.
 | Table | Responsibility |
 | --- | --- |
 | `staff_accounts` | One-to-one application-account metadata for `auth.users`; display name, `owner`/`staff`, and active/inactive status only. |
+| `business_profile` | Singleton studio identity and contact settings; fixed to the Manila timezone and PHP currency. |
 | `clients` | Minimal walk-in-friendly client record. |
 | `services` / `products` | Deactivatable catalogs with exact `numeric(12,2)` prices. |
 | `piercer_profiles` / `stations` | Deactivatable Studio resources assigned to service transactions. |
@@ -72,6 +73,7 @@ Calendar, or Overview pages.
 | Resource | Active Owner | Active Staff |
 | --- | --- | --- |
 | Staff accounts | Read metadata; mutation deferred to secure account management | Read own metadata only |
+| Business profile | Read/update the singleton profile | No access |
 | Clients | Read/create/update | Read/create/update |
 | Services / products | Read/create/update and deactivate | Read active catalog rows only |
 | Piercer profiles / stations | Read/create/update and deactivate | Read active rows for Dashboard assignment |

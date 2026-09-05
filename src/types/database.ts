@@ -34,6 +34,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      business_profile: {
+        Row: {
+          address: string | null
+          currency: string
+          email: string | null
+          instagram_url: string | null
+          location: string
+          phone: string | null
+          singleton: boolean
+          studio_name: string
+          timezone: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          currency?: string
+          email?: string | null
+          instagram_url?: string | null
+          location: string
+          phone?: string | null
+          singleton?: boolean
+          studio_name: string
+          timezone?: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          currency?: string
+          email?: string | null
+          instagram_url?: string | null
+          location?: string
+          phone?: string | null
+          singleton?: boolean
+          studio_name?: string
+          timezone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           created_at: string
@@ -1225,3 +1264,4 @@ export const Constants = {
     },
   },
 } as const
+

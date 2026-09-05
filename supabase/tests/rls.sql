@@ -75,6 +75,10 @@ insert into public.products (name, price, active) values ('RLS Owner Product', 1
 insert into public.waiver_templates (id, version, body)
 values ('00000000-0000-0000-0000-000000000303', 4, 'Template version four');
 
+update public.business_profile
+set email = 'owner-updated@example.test'
+where singleton;
+
 do $$
 declare
   account_count integer;
@@ -82,6 +86,10 @@ begin
   select count(*) into account_count from public.staff_accounts
   where id in ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000003');
   perform pg_temp.assert_true(account_count = 3, 'active Owner must read staff-account metadata');
+  perform pg_temp.assert_true(
+    (select email = 'owner-updated@example.test' from public.business_profile where singleton),
+    'active Owner must read and update the business profile'
+  );
 end;
 $$;
 
@@ -106,6 +114,17 @@ begin
   select count(*) into changed_count from changed;
 
   perform pg_temp.assert_true(changed_count = 0, 'Staff role escalation must be denied');
+
+  perform pg_temp.assert_true(
+    (select count(*) = 0 from public.business_profile),
+    'Staff must not read the Owner-only business profile'
+  );
+
+  with changed as (
+    update public.business_profile set location = 'Denied' where singleton returning singleton
+  )
+  select count(*) into changed_count from changed;
+  perform pg_temp.assert_true(changed_count = 0, 'Staff must not update the business profile');
 end;
 $$;
 

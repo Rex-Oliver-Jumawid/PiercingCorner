@@ -20,7 +20,8 @@ future transaction workflows, including search, create, edit, pricing, optional
 descriptions, and reversible active/inactive status management.
 Studio also persists standard hours, piercer profiles, service qualifications,
 weekly availability, and dated closures or reduced-hours exceptions. Settings
-provides station administration, and new service transactions accept only a
+provides the business profile, append-only consent-template administration,
+read-only staff-account visibility, and station administration. New service transactions accept only a
 currently available piercer qualified for every selected service.
 The Owner/Staff Dashboard now lists and searches today's Manila transactions,
 supports open-status operations, and provides a Zustand-driven Record Sale flow.
