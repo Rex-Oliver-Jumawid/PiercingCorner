@@ -100,8 +100,8 @@ function ReportsWorkspace() {
     <section className={`reports-page ${featureView}`}>
 
       <section className={`${panel} flex flex-col gap-3 p-4`}>
-        <div className="flex flex-wrap items-center justify-between gap-3" aria-label="Report period presets">
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="reports-preset-toolbar">
+          <div className="report-presets" aria-label="Report period presets">
             {([
               ['today', 'Today'],
               ['week', 'This Week'],
@@ -111,7 +111,8 @@ function ReportsWorkspace() {
               <button
                 key={value}
                 type="button"
-                className={dashButton({ variant: preset === value ? 'primary' : 'secondary' })}
+                className={preset === value ? 'active' : undefined}
+                aria-pressed={preset === value}
                 onClick={() => choosePreset(value)}
               >
                 {label}
@@ -119,7 +120,8 @@ function ReportsWorkspace() {
             ))}
             <button
               type="button"
-              className={dashButton({ variant: preset === 'custom' ? 'primary' : 'secondary' })}
+              className={preset === 'custom' ? 'active' : undefined}
+              aria-pressed={preset === 'custom'}
               onClick={() => setPreset('custom')}
             >
               Custom Range
