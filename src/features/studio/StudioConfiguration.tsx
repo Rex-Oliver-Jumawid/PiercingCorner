@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
+import { DateField, SelectField, TimeField } from '../../components/ui/FormControls'
 import { CatalogCard } from './CatalogCard'
 import { useStudioMutation } from './studioQueries'
 import * as service from './studioService'
@@ -56,9 +57,9 @@ function HoursEditor({ hour, onClose }: { hour: StudioHour; onClose: () => void 
     if (!error) mutation.mutate({ weekday: hour.weekday, isOpen: open, opensAt: starts, closesAt: ends }, { onSuccess: onClose })
   }
   return <EditorShell title="Edit Studio Hours" subtitle={day.label} busy={mutation.isPending} error={validation || mutation.error?.message} onClose={onClose} onSubmit={submit}>
-    <label className="catalog-field catalog-wide"><span>Day status</span><select aria-label="Day status" value={open ? 'open' : 'closed'} onChange={(event) => setOpen(event.target.value === 'open')}><option value="open">Open</option><option value="closed">Closed</option></select></label>
-    <label className="catalog-field"><span>Opens</span><input aria-label="Opens" type="time" value={starts} disabled={!open} onChange={(event) => setStarts(event.target.value)} /></label>
-    <label className="catalog-field"><span>Closes</span><input aria-label="Closes" type="time" value={ends} disabled={!open} onChange={(event) => setEnds(event.target.value)} /></label>
+    <SelectField className="catalog-field catalog-wide" label="Day status" value={open ? 'open' : 'closed'} options={[{ value: 'open', label: 'Open' }, { value: 'closed', label: 'Closed' }]} onValueChange={(value) => setOpen(value === 'open')} />
+    <TimeField className="catalog-field" label="Opens" value={starts} disabled={!open} onValueChange={setStarts} />
+    <TimeField className="catalog-field" label="Closes" value={ends} disabled={!open} onValueChange={setEnds} />
     <p className="studio-notice catalog-wide">Studio Hours define the operating window. Conflicting piercer schedules must be changed first.</p>
   </EditorShell>
 }
@@ -75,8 +76,8 @@ function PiercerEditor({ profile, configuration, onClose }: { profile?: PiercerP
   }
   return <EditorShell title={profile ? 'Edit Piercer Profile' : 'Add Piercer Profile'} subtitle="Piercers are Studio profiles, not application accounts." busy={mutation.isPending} error={validation || mutation.error?.message} onClose={onClose} onSubmit={submit} submitLabel={profile ? 'Save changes' : 'Add piercer'}>
     <label className="catalog-field catalog-wide"><span>Piercer name</span><input aria-label="Piercer name" autoFocus value={name} onChange={(event) => setName(event.target.value)} /></label>
-    <label className="catalog-field"><span>Default station</span><select aria-label="Default station" value={stationId} onChange={(event) => setStationId(event.target.value)}><option value="">No default station</option>{configuration.stations.filter((station) => station.active || station.id === profile?.default_station_id).map((station) => <option key={station.id} value={station.id} disabled={!station.active}>{station.name}{station.active ? '' : ' (Inactive)'}</option>)}</select></label>
-    <label className="catalog-field"><span>Status</span><select aria-label="Status" value={active ? 'active' : 'inactive'} onChange={(event) => setActive(event.target.value === 'active')}><option value="active">Active</option><option value="inactive">Inactive</option></select></label>
+    <SelectField className="catalog-field" label="Default station" value={stationId} options={[{ value: '', label: 'No default station' }, ...configuration.stations.filter((station) => station.active || station.id === profile?.default_station_id).map((station) => ({ value: station.id, label: `${station.name}${station.active ? '' : ' (Inactive)'}`, disabled: !station.active }))]} onValueChange={setStationId} />
+    <SelectField className="catalog-field" label="Status" value={active ? 'active' : 'inactive'} options={[{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }]} onValueChange={(value) => setActive(value === 'active')} />
   </EditorShell>
 }
 
@@ -112,10 +113,10 @@ function AvailabilityEditor({ profile, weekday, configuration, onClose }: { prof
     setValidation(error); if (!error) mutation.mutate({ piercerId: profile.id, weekday: day, available, startsAt: starts, endsAt: ends }, { onSuccess: onClose })
   }
   return <EditorShell title="Edit Piercer Availability" subtitle={profile.display_name} busy={mutation.isPending} error={validation || mutation.error?.message} onClose={onClose} onSubmit={submit}>
-    <label className="catalog-field catalog-wide"><span>Day</span><select aria-label="Day" value={day} onChange={(event) => chooseDay(Number(event.target.value))}>{STUDIO_DAYS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
-    <label className="catalog-field catalog-wide"><span>Availability</span><select aria-label="Availability" value={available ? 'available' : 'unavailable'} onChange={(event) => setAvailable(event.target.value === 'available')}><option value="available">Available</option><option value="unavailable">Not available</option></select></label>
-    <label className="catalog-field"><span>Starts</span><input aria-label="Starts" type="time" disabled={!available} value={starts} onChange={(event) => setStarts(event.target.value)} /></label>
-    <label className="catalog-field"><span>Ends</span><input aria-label="Ends" type="time" disabled={!available} value={ends} onChange={(event) => setEnds(event.target.value)} /></label>
+    <SelectField className="catalog-field catalog-wide" label="Day" value={String(day)} options={STUDIO_DAYS.map((item) => ({ value: String(item.value), label: item.label }))} onValueChange={(value) => chooseDay(Number(value))} />
+    <SelectField className="catalog-field catalog-wide" label="Availability" value={available ? 'available' : 'unavailable'} options={[{ value: 'available', label: 'Available' }, { value: 'unavailable', label: 'Not available' }]} onValueChange={(value) => setAvailable(value === 'available')} />
+    <TimeField className="catalog-field" label="Starts" disabled={!available} value={starts} onValueChange={setStarts} />
+    <TimeField className="catalog-field" label="Ends" disabled={!available} value={ends} onValueChange={setEnds} />
   </EditorShell>
 }
 
@@ -135,10 +136,10 @@ function ExceptionEditor({ exception, onClose }: { exception?: StudioException; 
     setValidation(error); if (!error) save.mutate({ id: exception?.id, exception_date: date, exception_type: type, opens_at: starts, closes_at: ends, reason }, { onSuccess: onClose })
   }
   return <EditorShell title={exception ? 'Edit Closure or Exception' : 'Add Closure or Exception'} subtitle="Studio-wide Manila schedule override" busy={save.isPending || remove.isPending} error={validation || save.error?.message || remove.error?.message} onClose={onClose} onSubmit={submit} danger={exception ? <button type="button" className="catalog-button danger studio-delete" onClick={() => remove.mutate(exception.id, { onSuccess: onClose })}>Remove</button> : null}>
-    <label className="catalog-field"><span>Date</span><input aria-label="Date" type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label>
-    <label className="catalog-field"><span>Type</span><select aria-label="Type" value={type} onChange={(event) => setType(event.target.value as typeof type)}><option value="closed">Closed all day</option><option value="reduced_hours">Reduced hours</option></select></label>
-    <label className="catalog-field"><span>Start time</span><input aria-label="Start time" type="time" disabled={type === 'closed'} value={starts} onChange={(event) => setStarts(event.target.value)} /></label>
-    <label className="catalog-field"><span>End time</span><input aria-label="End time" type="time" disabled={type === 'closed'} value={ends} onChange={(event) => setEnds(event.target.value)} /></label>
+    <DateField className="catalog-field" label="Date" value={date} onValueChange={setDate} />
+    <SelectField className="catalog-field" label="Type" value={type} options={[{ value: 'closed', label: 'Closed all day' }, { value: 'reduced_hours', label: 'Reduced hours' }]} onValueChange={setType} />
+    <TimeField className="catalog-field" label="Start time" disabled={type === 'closed'} value={starts} onValueChange={setStarts} />
+    <TimeField className="catalog-field" label="End time" disabled={type === 'closed'} value={ends} onValueChange={setEnds} />
     <label className="catalog-field catalog-wide"><span>Reason</span><input aria-label="Reason" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Maintenance, private event, holiday…" /></label>
   </EditorShell>
 }

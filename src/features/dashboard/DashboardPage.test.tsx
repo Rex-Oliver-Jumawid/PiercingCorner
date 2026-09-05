@@ -221,9 +221,8 @@ describe('Dashboard transaction workflow', () => {
     harness()
     fireEvent.click(await screen.findByRole('button', { name: /Open transaction/ }))
     const dialog = screen.getByRole('dialog', { name: 'Transaction details' })
-    fireEvent.change(within(dialog).getByRole('combobox', { name: 'Completion status' }), {
-      target: { value: 'ongoing' },
-    })
+    fireEvent.keyDown(within(dialog).getByRole('combobox', { name: 'Completion status' }), { key: 'ArrowDown' })
+    fireEvent.click(within(dialog).getByRole('option', { name: 'Ongoing' }))
     await waitFor(() =>
       expect(service.updateTransactionStatus).toHaveBeenCalledWith('tx-1', 'ongoing'),
     )

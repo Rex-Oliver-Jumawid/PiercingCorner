@@ -46,8 +46,10 @@ describe('SalesPage', () => {
 
   it('applies type and payment filters at the server-query boundary', async () => {
     renderPage()
-    fireEvent.change(screen.getByLabelText('Item type'), { target: { value: 'service' } })
-    fireEvent.change(screen.getByLabelText('Payment method'), { target: { value: 'cash' } })
+    fireEvent.keyDown(screen.getByRole('combobox', { name: 'Item type' }), { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('option', { name: 'Contains service' }))
+    fireEvent.keyDown(screen.getByRole('combobox', { name: 'Payment method' }), { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('option', { name: 'Cash' }))
     await waitFor(() => expect(queries.useCompletedSales).toHaveBeenLastCalledWith(expect.objectContaining({ type: 'service', paymentMethod: 'cash' }), 0))
     const applied = vi.mocked(queries.useCompletedSales).mock.calls.at(-1)?.[0]
     expect(applied).not.toHaveProperty('fromDate')

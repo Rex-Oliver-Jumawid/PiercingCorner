@@ -6,6 +6,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { MetricCard } from '../../components/ui/MetricCard'
+import { SelectField } from '../../components/ui/FormControls'
 import {
   dashButton,
   dashField,
@@ -89,41 +90,26 @@ function SalesWorkspace() {
               />
             </span>
           </label>
-          <label className={`${dashField} w-[180px] max-[640px]:w-full`}>
-            <span>Item type</span>
-            <select
-              value={filters.type}
-              onChange={(event) => {
-                setFilters({ ...filters, type: event.target.value as SaleTypeFilter })
-                setPage(0)
-              }}
-            >
-              <option value="all">All sales</option>
-              <option value="service">Contains service</option>
-              <option value="product">Contains product</option>
-            </select>
-          </label>
-          <label className={`${dashField} w-[180px] max-[640px]:w-full`}>
-            <span>Payment method</span>
-            <select
-              value={filters.paymentMethod}
-              onChange={(event) => {
-                setFilters({
-                  ...filters,
-                  paymentMethod: event.target.value as PaymentMethod | 'all',
-                })
-                setPage(0)
-              }}
-            >
-              <option value="all">All methods</option>
-              <option value="cash">Cash</option>
-              <option value="gcash">GCash</option>
-              <option value="maya">Maya</option>
-              <option value="bank_transfer">Bank transfer</option>
-              <option value="card">Card</option>
-              <option value="other">Other</option>
-            </select>
-          </label>
+          <SelectField
+            className={`${dashField} w-[180px] max-[640px]:w-full`}
+            label="Item type"
+            value={filters.type}
+            options={[{ value: 'all', label: 'All sales' }, { value: 'service', label: 'Contains service' }, { value: 'product', label: 'Contains product' }]}
+            onValueChange={(type: SaleTypeFilter) => {
+              setFilters({ ...filters, type })
+              setPage(0)
+            }}
+          />
+          <SelectField
+            className={`${dashField} w-[180px] max-[640px]:w-full`}
+            label="Payment method"
+            value={filters.paymentMethod}
+            options={[{ value: 'all', label: 'All methods' }, { value: 'cash', label: 'Cash' }, { value: 'gcash', label: 'GCash' }, { value: 'maya', label: 'Maya' }, { value: 'bank_transfer', label: 'Bank transfer' }, { value: 'card', label: 'Card' }, { value: 'other', label: 'Other' }]}
+            onValueChange={(paymentMethod: PaymentMethod | 'all') => {
+              setFilters({ ...filters, paymentMethod })
+              setPage(0)
+            }}
+          />
         </div>
 
         <p className="mx-4 my-2.5 rounded-[10px] border border-dashed border-[#c88f6e] bg-[#fff3d8] p-2.5 text-[10px] text-[#755448]">

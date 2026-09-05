@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
+import { SelectField } from '../../components/ui/FormControls'
 import { useSaveStation } from './stationQueries'
 import type { Station } from './stationService'
 
@@ -16,7 +17,6 @@ export function StationEditor({ station, onClose }: { station?: Station; onClose
   }
   return <dialog ref={dialog} className="settings-dialog" aria-label={station ? 'Edit station' : 'Add station'} onCancel={(event) => { event.preventDefault(); if (!save.isPending) onClose() }}>
     <header><div><p>SETTINGS</p><h2>{station ? 'Edit station' : 'Add station'}</h2><small>Stations are selectable for service transactions.</small></div><button type="button" aria-label="Close station editor" disabled={save.isPending} onClick={onClose}>×</button></header>
-    <form onSubmit={submit}><fieldset disabled={save.isPending}><label><span>Station name</span><input autoFocus aria-label="Station name" value={name} onChange={(event) => setName(event.target.value)} /></label><label><span>Status</span><select aria-label="Status" value={active ? 'active' : 'inactive'} onChange={(event) => setActive(event.target.value === 'active')}><option value="active">Active</option><option value="inactive">Inactive</option></select></label></fieldset>{validation || save.isError ? <p role="alert" className="settings-error">{validation || save.error?.message}</p> : null}<footer><button type="button" disabled={save.isPending} onClick={onClose}>Cancel</button><button type="submit" className="primary" disabled={save.isPending}>{save.isPending ? 'Saving…' : 'Save changes'}</button></footer></form>
+    <form onSubmit={submit}><fieldset disabled={save.isPending}><label><span>Station name</span><input autoFocus aria-label="Station name" value={name} onChange={(event) => setName(event.target.value)} /></label><SelectField label="Status" value={active ? 'active' : 'inactive'} options={[{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }]} onValueChange={(value) => setActive(value === 'active')} /></fieldset>{validation || save.isError ? <p role="alert" className="settings-error">{validation || save.error?.message}</p> : null}<footer><button type="button" disabled={save.isPending} onClick={onClose}>Cancel</button><button type="submit" className="primary" disabled={save.isPending}>{save.isPending ? 'Saving…' : 'Save changes'}</button></footer></form>
   </dialog>
 }
-

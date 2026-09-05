@@ -7,6 +7,7 @@ import {
   ShoppingBag,
 } from 'lucide-react'
 import { MetricCard } from '../../components/ui/MetricCard'
+import { DateField } from '../../components/ui/FormControls'
 import {
   dashButton,
   dashField,
@@ -137,28 +138,24 @@ function ReportsWorkspace() {
         </div>
 
         <div className="flex flex-wrap items-end gap-3 border-t border-dashed border-[#dab08f] pt-3">
-          <label className={`${dashField} w-[160px]`}>
-            <span>From</span>
-            <input
-              type="date"
-              value={draft.from}
-              onChange={(event) => {
-                setPreset('custom')
-                setDraft({ ...draft, from: event.target.value })
-              }}
-            />
-          </label>
-          <label className={`${dashField} w-[160px]`}>
-            <span>To</span>
-            <input
-              type="date"
-              value={draft.to}
-              onChange={(event) => {
-                setPreset('custom')
-                setDraft({ ...draft, to: event.target.value })
-              }}
-            />
-          </label>
+          <DateField
+            className={`${dashField} w-[160px]`}
+            label="From"
+            value={draft.from}
+            onValueChange={(from) => {
+              setPreset('custom')
+              setDraft({ ...draft, from })
+            }}
+          />
+          <DateField
+            className={`${dashField} w-[160px]`}
+            label="To"
+            value={draft.to}
+            onValueChange={(to) => {
+              setPreset('custom')
+              setDraft({ ...draft, to })
+            }}
+          />
           <button
             type="button"
             className={dashButton({ variant: 'primary' })}

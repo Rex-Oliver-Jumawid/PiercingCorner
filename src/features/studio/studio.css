@@ -323,8 +323,7 @@
 
 .catalog-search-wrap input,
 .catalog-form input:not([type='checkbox']),
-.catalog-form textarea,
-.catalog-form select {
+.catalog-form textarea {
   width: 100%;
   min-height: 40px;
   border: 1.5px solid var(--studio-ink);
@@ -350,8 +349,7 @@
 
 .catalog-search-wrap input:focus,
 .catalog-form input:not([type='checkbox']):focus,
-.catalog-form textarea:focus,
-.catalog-form select:focus {
+.catalog-form textarea:focus {
   border-color: var(--studio-orange);
   outline: 3px solid rgba(242, 106, 54, 0.25);
   box-shadow: 2px 2px 0 var(--studio-orange);

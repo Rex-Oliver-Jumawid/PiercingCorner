@@ -146,9 +146,8 @@ describe('Studio catalog workflow', () => {
       await screen.findByRole('button', { name: 'Edit service Lobe Piercing' }),
     )
     const dialog = screen.getByRole('dialog', { name: 'Edit service' })
-    fireEvent.change(within(dialog).getByRole('combobox', { name: 'Status' }), {
-      target: { value: 'inactive' },
-    })
+    fireEvent.keyDown(within(dialog).getByRole('combobox', { name: 'Status' }), { key: 'ArrowDown' })
+    fireEvent.click(within(dialog).getByRole('option', { name: 'Inactive' }))
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }))
     await waitFor(() =>
       expect(service.saveCatalog).toHaveBeenCalledWith(
@@ -178,7 +177,9 @@ describe('Studio catalog workflow', () => {
     await screen.findByText('Studio Hours')
     fireEvent.click(screen.getAllByRole('button', { name: 'Edit' })[0])
     const dialog = screen.getByRole('dialog', { name: 'Edit Studio Hours' })
-    fireEvent.change(within(dialog).getByLabelText('Opens'), { target: { value: '11:00' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Opens' }))
+    fireEvent.change(within(dialog).getByRole('spinbutton', { name: 'Hour' }), { target: { value: '11' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Apply' }))
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }))
     await waitFor(() => expect(studioService.saveStudioHour).toHaveBeenCalledWith({ weekday: 1, isOpen: true, opensAt: '11:00', closesAt: '20:00' }, expect.anything()))
   })
