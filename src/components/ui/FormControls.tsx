@@ -25,6 +25,7 @@ interface SelectFieldProps<T extends string> extends SharedFieldProps {
   onValueChange: (value: T) => void
   side?: Select.SelectContentProps['side']
   avoidCollisions?: boolean
+  contentClassName?: string
   placeholder?: string
   name?: string
 }
@@ -69,6 +70,7 @@ export function SelectField<T extends string>({
   onValueChange,
   side = 'bottom',
   avoidCollisions = true,
+  contentClassName,
   placeholder,
   className,
   disabled,
@@ -94,7 +96,7 @@ export function SelectField<T extends string>({
         {container ? (
           <Select.Portal container={container}>
             <Select.Content
-              className="pc-select-content"
+              className={['pc-select-content', contentClassName].filter(Boolean).join(' ')}
               position="popper"
               side={side}
               avoidCollisions={avoidCollisions}

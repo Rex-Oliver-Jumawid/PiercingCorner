@@ -267,6 +267,10 @@ describe('Dashboard transaction workflow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create Transaction Preview' }))
     const payment = screen.getByRole('dialog', { name: 'Complete Payment' })
     expect(within(payment).getByText('₱500.00')).toBeVisible()
+    const paymentMethod = within(payment).getByRole('combobox', { name: 'Payment method' })
+    fireEvent.keyDown(paymentMethod, { key: 'ArrowDown' })
+    expect(within(payment).queryByRole('option', { name: 'Other' })).not.toBeInTheDocument()
+    fireEvent.keyDown(paymentMethod, { key: 'Escape' })
     fireEvent.click(within(payment).getByRole('button', { name: 'Complete Payment' }))
     await waitFor(() =>
       expect(service.recordProductSale).toHaveBeenCalledWith({
@@ -381,6 +385,10 @@ describe('Dashboard transaction workflow', () => {
     expect(within(finalize).getByText('Amount to be paid')).toBeVisible()
     expect(within(finalize).getAllByText('₱800.00')).not.toHaveLength(0)
     expect(within(finalize).getByRole('region', { name: 'Payment details' })).toBeVisible()
+    const paymentMethod = within(finalize).getByRole('combobox', { name: 'Payment method' })
+    fireEvent.keyDown(paymentMethod, { key: 'ArrowDown' })
+    expect(within(finalize).queryByRole('option', { name: 'Other' })).not.toBeInTheDocument()
+    fireEvent.keyDown(paymentMethod, { key: 'Escape' })
     fireEvent.click(within(finalize).getByRole('button', { name: 'Complete Payment' }))
     await waitFor(() =>
       expect(service.finalizeTransaction).toHaveBeenCalledWith({

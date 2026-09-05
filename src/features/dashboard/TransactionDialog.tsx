@@ -411,7 +411,7 @@ export function FinalizeDialog({
                 <footer className="finalize-summary-total"><span>Amount to be paid</span><strong>{formatMoney(total)}</strong></footer>
               </section>
               <section className="finalize-payment" aria-label="Payment details">
-                <SelectField className="dashboard-field" label="Payment method" side="bottom" avoidCollisions={false} value={payment.method} options={[{ value: 'cash', label: 'Cash' }, { value: 'gcash', label: 'GCash' }, { value: 'maya', label: 'Maya' }, { value: 'bank_transfer', label: 'Bank transfer' }, { value: 'card', label: 'Card' }, { value: 'other', label: 'Other' }]} onValueChange={(method) => setPayment({ method, reference: method === 'cash' ? '' : payment.reference })} />
+                <SelectField className="dashboard-field" contentClassName="finalize-payment-menu" label="Payment method" side="bottom" avoidCollisions={false} value={payment.method} options={[{ value: 'cash', label: 'Cash' }, { value: 'gcash', label: 'GCash' }, { value: 'maya', label: 'Maya' }, { value: 'bank_transfer', label: 'Bank transfer' }, { value: 'card', label: 'Card' }]} onValueChange={(method) => setPayment({ method, reference: method === 'cash' ? '' : payment.reference })} />
                 {payment.method !== 'cash' ? <label className="dashboard-field"><span>Reference number</span><input value={payment.reference} onChange={(event) => setPayment({ ...payment, reference: event.target.value })} /></label> : null}
                 {error ? <p role="alert" className="dashboard-error finalize-error">{error}</p> : null}
                 {mutation.isError ? <p role="alert" className="dashboard-error finalize-error">{mutation.error.message}</p> : null}

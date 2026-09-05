@@ -1272,6 +1272,11 @@
   margin-top: 11px;
 }
 
+.transaction-actions-card .transaction-action-row + p {
+  margin-top: 14px;
+  line-height: 1.45;
+}
+
 /* Finalize Dialog */
 .finalize-dialog {
   position: fixed;
@@ -1291,10 +1296,6 @@
 
 .finalize-dialog[open] {
   display: flex;
-}
-
-.finalize-dialog:has(.finalize-payment .pc-select-trigger[data-state='open']) {
-  overflow: visible;
 }
 
 .finalize-dialog > .transaction-dialog-head {
@@ -1567,6 +1568,15 @@
   display: grid;
   gap: 12px;
   margin-top: 16px;
+}
+
+.finalize-payment-menu {
+  max-height: none;
+}
+
+.finalize-payment-menu .pc-select-item {
+  min-height: 30px;
+  padding-block: 4px;
 }
 
 .finalize-error {
