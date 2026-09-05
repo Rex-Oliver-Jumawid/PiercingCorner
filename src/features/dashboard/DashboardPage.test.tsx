@@ -378,9 +378,10 @@ describe('Dashboard transaction workflow', () => {
     expect(within(finalize).getByText('No matching items.')).toBeVisible()
     fireEvent.change(serviceSearch, { target: { value: '' } })
     expect(within(finalize).getByRole('checkbox', { name: /Lobe Piercing/ })).toBeChecked()
-    fireEvent.click(within(finalize).getByRole('button', { name: 'Proceed to payment' }))
-    expect(within(finalize).getByText('₱800.00')).toBeVisible()
-    fireEvent.click(within(finalize).getByRole('button', { name: 'Confirm payment' }))
+    expect(within(finalize).getByText('Amount to be paid')).toBeVisible()
+    expect(within(finalize).getAllByText('₱800.00')).not.toHaveLength(0)
+    expect(within(finalize).getByRole('region', { name: 'Payment details' })).toBeVisible()
+    fireEvent.click(within(finalize).getByRole('button', { name: 'Complete Payment' }))
     await waitFor(() =>
       expect(service.finalizeTransaction).toHaveBeenCalledWith({
         transactionId: 'tx-1',
@@ -454,7 +455,8 @@ describe('Dashboard transaction workflow', () => {
     fireEvent.click(within(waiver).getByRole('button', { name: 'Retry waiver persistence' }))
 
     const payment = await screen.findByRole('dialog', { name: 'Finalize transaction' })
-    expect(within(payment).getByRole('heading', { name: 'Complete Payment' })).toBeVisible()
+    expect(within(payment).getByRole('heading', { name: 'Review & Add Items' })).toBeVisible()
+    expect(within(payment).getByRole('region', { name: 'Payment details' })).toBeVisible()
     expect(service.acceptExistingTransactionWaiver).not.toHaveBeenCalled()
     expect(service.finalizeSignedWaiver).toHaveBeenCalledWith({
       eventId: 'event-recovered',

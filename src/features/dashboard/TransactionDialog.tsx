@@ -247,12 +247,10 @@ export function FinalizeDialog({
   transaction,
   onBack,
   onCompleted,
-  initialStep = 'items',
 }: {
   transaction: DashboardTransaction
   onBack: () => void
   onCompleted: () => void
-  initialStep?: 'items' | 'payment'
 }) {
   const { setDialog } = useModal()
   const services = useActiveCatalog('service')
@@ -266,7 +264,6 @@ export function FinalizeDialog({
   const [serviceSearch, setServiceSearch] = useState('')
   const [productSearch, setProductSearch] = useState('')
   const [payment, setPayment] = useState<PaymentDraft>({ method: 'cash', reference: '' })
-  const [step, setStep] = useState<'items' | 'payment'>(initialStep)
   const [error, setError] = useState<string | null>(null)
   const serviceOptions = useMemo(
     () => combinedOptions('service', transaction, services.data ?? []),
@@ -306,7 +303,8 @@ export function FinalizeDialog({
     setSelected(selected.includes(id) ? selected.filter((value) => value !== id) : [...selected, id])
   }
 
-  function continueToPayment() {
+  function submit(event: FormEvent) {
+    event.preventDefault()
     if (!serviceIds.length && !productIds.length) {
       setError('A transaction must contain at least one item.')
       return
@@ -315,12 +313,6 @@ export function FinalizeDialog({
       setError('A signed waiver is required for service items.')
       return
     }
-    setError(null)
-    setStep('payment')
-  }
-
-  function submit(event: FormEvent) {
-    event.preventDefault()
     const paymentError = validatePayment(payment)
     setError(paymentError)
     if (paymentError) return
@@ -335,7 +327,7 @@ export function FinalizeDialog({
   return (
     <dialog
       ref={setDialog}
-      className={`transaction-dialog finalize-dialog${step === 'payment' ? ' payment-step' : ''}`}
+      className="transaction-dialog finalize-dialog"
       aria-label="Finalize transaction"
       onCancel={(event) => {
         event.preventDefault()
@@ -343,11 +335,10 @@ export function FinalizeDialog({
       }}
     >
       <header className="transaction-dialog-head">
-        <div><p className="dashboard-eyebrow">{step === 'items' ? 'FINALIZE TRANSACTION' : 'PAYMENT'}</p><h2>{step === 'items' ? 'Review & Add Items' : 'Complete Payment'}</h2></div>
+        <div><p className="dashboard-eyebrow">FINALIZE TRANSACTION</p><h2>Review & Add Items</h2></div>
         <button type="button" aria-label="Close finalize transaction" disabled={mutation.isPending} onClick={onBack}>×</button>
       </header>
-      {step === 'items' ? (
-        <>
+      <form className="finalize-form" onSubmit={submit}>
           <div className="transaction-dialog-body finalize-layout">
             <section className="finalize-left">
               <h3 className="finalize-section-title">Add more items</h3>
@@ -392,7 +383,6 @@ export function FinalizeDialog({
                   </section>
                 ))}
               </div>
-              {error ? <p role="alert" className="dashboard-error finalize-error">{error}</p> : null}
             </section>
             <aside className="finalize-right">
               <h3 className="finalize-section-title">Transaction Summary</h3>
@@ -418,30 +408,21 @@ export function FinalizeDialog({
                     </section>
                   ))}
                 </div>
-                <footer className="finalize-summary-total"><span>Total amount</span><strong>{formatMoney(total)}</strong></footer>
+                <footer className="finalize-summary-total"><span>Amount to be paid</span><strong>{formatMoney(total)}</strong></footer>
+              </section>
+              <section className="finalize-payment" aria-label="Payment details">
+                <SelectField className="dashboard-field" label="Payment method" side="bottom" avoidCollisions={false} value={payment.method} options={[{ value: 'cash', label: 'Cash' }, { value: 'gcash', label: 'GCash' }, { value: 'maya', label: 'Maya' }, { value: 'bank_transfer', label: 'Bank transfer' }, { value: 'card', label: 'Card' }, { value: 'other', label: 'Other' }]} onValueChange={(method) => setPayment({ method, reference: method === 'cash' ? '' : payment.reference })} />
+                {payment.method !== 'cash' ? <label className="dashboard-field"><span>Reference number</span><input value={payment.reference} onChange={(event) => setPayment({ ...payment, reference: event.target.value })} /></label> : null}
+                {error ? <p role="alert" className="dashboard-error finalize-error">{error}</p> : null}
+                {mutation.isError ? <p role="alert" className="dashboard-error finalize-error">{mutation.error.message}</p> : null}
               </section>
             </aside>
           </div>
           <footer className="transaction-dialog-foot finalize-footer">
-            <button type="button" className="dashboard-button" onClick={onBack}>Back</button>
-            <button type="button" className="dashboard-button primary" onClick={continueToPayment}>Proceed to payment</button>
+            <button type="button" className="dashboard-button" disabled={mutation.isPending} onClick={onBack}>Back</button>
+            <button type="submit" className="dashboard-button primary" disabled={mutation.isPending}>{mutation.isPending ? 'Finalizing…' : 'Complete Payment'}</button>
           </footer>
-        </>
-      ) : (
-        <form onSubmit={submit}>
-          <div className="transaction-dialog-body payment-body">
-            <section className="payment-total"><small>Amount to be paid</small><strong>{formatMoney(total)}</strong></section>
-            <SelectField className="dashboard-field" label="Payment method" value={payment.method} options={[{ value: 'cash', label: 'Cash' }, { value: 'gcash', label: 'GCash' }, { value: 'maya', label: 'Maya' }, { value: 'bank_transfer', label: 'Bank transfer' }, { value: 'card', label: 'Card' }, { value: 'other', label: 'Other' }]} onValueChange={(method) => setPayment({ method, reference: method === 'cash' ? '' : payment.reference })} />
-            {payment.method !== 'cash' ? <label className="dashboard-field"><span>Reference number</span><input value={payment.reference} onChange={(event) => setPayment({ ...payment, reference: event.target.value })} /></label> : null}
-            {error ? <p role="alert" className="dashboard-error">{error}</p> : null}
-            {mutation.isError ? <p role="alert" className="dashboard-error">{mutation.error.message}</p> : null}
-          </div>
-          <footer className="transaction-dialog-foot">
-            <button type="button" className="dashboard-button" disabled={mutation.isPending} onClick={() => setStep('items')}>Back</button>
-            <button type="submit" className="dashboard-button primary" disabled={mutation.isPending}>{mutation.isPending ? 'Finalizing…' : 'Confirm payment'}</button>
-          </footer>
-        </form>
-      )}
+      </form>
     </dialog>
   )
 }

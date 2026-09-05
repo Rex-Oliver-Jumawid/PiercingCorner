@@ -23,7 +23,6 @@ function DashboardWorkspace() {
   const [committedSearch, setCommittedSearch] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [finalizingId, setFinalizingId] = useState<string | null>(null)
-  const [directPayment, setDirectPayment] = useState(false)
   const [signing, setSigning] = useState<{
     transaction: DashboardTransaction
     preparation: WaiverPreparation
@@ -181,7 +180,6 @@ function DashboardWorkspace() {
           onClose={() => setSelectedId(null)}
           onFinalize={() => {
             setSelectedId(null)
-            setDirectPayment(false)
             setFinalizingId(selected.id)
           }}
           onSignWaiver={(input) => {
@@ -202,7 +200,6 @@ function DashboardWorkspace() {
           }}
           onPersisted={() => {
             setSigning(null)
-            setDirectPayment(true)
             setFinalizingId(signing.transaction.id)
           }}
         />
@@ -210,15 +207,12 @@ function DashboardWorkspace() {
       {finalizing ? (
         <FinalizeDialog
           transaction={finalizing}
-          initialStep={directPayment ? 'payment' : 'items'}
           onBack={() => {
             setFinalizingId(null)
-            setDirectPayment(false)
             setSelectedId(finalizing.id)
           }}
           onCompleted={() => {
             setFinalizingId(null)
-            setDirectPayment(false)
             setSelectedId(finalizing.id)
           }}
         />

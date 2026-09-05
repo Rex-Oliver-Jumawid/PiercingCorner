@@ -23,6 +23,8 @@ interface SelectFieldProps<T extends string> extends SharedFieldProps {
   value: T
   options: readonly SelectOption<T>[]
   onValueChange: (value: T) => void
+  side?: Select.SelectContentProps['side']
+  avoidCollisions?: boolean
   placeholder?: string
   name?: string
 }
@@ -65,6 +67,8 @@ export function SelectField<T extends string>({
   value,
   options,
   onValueChange,
+  side = 'bottom',
+  avoidCollisions = true,
   placeholder,
   className,
   disabled,
@@ -89,7 +93,14 @@ export function SelectField<T extends string>({
         </Select.Trigger>
         {container ? (
           <Select.Portal container={container}>
-            <Select.Content className="pc-select-content" position="popper" sideOffset={6} collisionPadding={12}>
+            <Select.Content
+              className="pc-select-content"
+              position="popper"
+              side={side}
+              avoidCollisions={avoidCollisions}
+              sideOffset={6}
+              collisionPadding={12}
+            >
               <Select.ScrollUpButton className="pc-select-scroll"><ChevronDown className="pc-chevron-up" aria-hidden="true" /></Select.ScrollUpButton>
               <Select.Viewport className="pc-select-viewport">
                 {options.map((option) => (
