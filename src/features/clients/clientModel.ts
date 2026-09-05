@@ -10,6 +10,8 @@ export type DuplicateClient = Pick<
   Client,
   'id' | 'full_name' | 'email' | 'phone'
 >
+export type ClientTransactionWaiver =
+  Database['public']['Functions']['get_transaction_waiver']['Returns'][number]
 export const PAGE_SIZE = 25
 
 export function validateClient(input: ClientInput) {

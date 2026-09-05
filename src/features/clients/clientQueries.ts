@@ -36,6 +36,14 @@ export function useTransaction(clientId: string, id: string) {
     queryFn: ({ signal }) => service.getTransaction(clientId, id, signal),
   })
 }
+export function useTransactionWaiver(id: string, enabled: boolean) {
+  const scope = useClientScope()
+  return useQuery({
+    queryKey: [...scope, 'transaction-waiver', id],
+    enabled,
+    queryFn: ({ signal }) => service.getTransactionWaiver(id, signal),
+  })
+}
 export function useCheckDuplicates() {
   return useMutation({
     mutationFn: (input: ClientInput) =>

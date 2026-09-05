@@ -1,6 +1,7 @@
 import { getSupabaseClient } from '../../lib/supabase/client'
 import { PAGE_SIZE, validateClient } from './clientModel'
 import type { ClientInput, ClientSummary, DuplicateClient } from './clientModel'
+import type { ClientTransactionWaiver } from './clientModel'
 
 export async function listClients(
   search: string,
@@ -140,5 +141,25 @@ export async function getTransaction(
     .maybeSingle()
   if (error)
     throw new Error('Unable to load transaction details. Please try again.')
+  return data
+}
+
+export async function getTransactionWaiver(
+  transactionId: string,
+  signal: AbortSignal,
+): Promise<ClientTransactionWaiver | null> {
+  const { data, error } = await getSupabaseClient()
+    .rpc('get_transaction_waiver', { target_transaction_id: transactionId })
+    .abortSignal(signal)
+    .maybeSingle()
+  if (error) throw new Error('Could not load this transaction’s waiver.')
+  return data
+}
+
+export async function downloadWaiverPdf(path: string) {
+  const { data, error } = await getSupabaseClient().storage
+    .from('waiver-documents')
+    .download(path)
+  if (error) throw new Error('Could not open the waiver PDF.')
   return data
 }

@@ -6,6 +6,7 @@ import {
   findDuplicates,
   getHistory,
   getTransaction,
+  getTransactionWaiver,
   listClients,
   saveClient,
 } from './clientService'
@@ -128,6 +129,17 @@ describe('Clients Supabase service boundary', () => {
     )
     expect(request().url.searchParams.get('client_id')).toBe('eq.client-1')
     expect(request().url.searchParams.get('id')).toBe('eq.transaction-1')
+  })
+  it('loads a transaction waiver through the existing narrow RPC', async () => {
+    response(null)
+    await getTransactionWaiver(
+      'transaction-1',
+      new AbortController().signal,
+    )
+    expect(request().url.pathname).toBe('/rest/v1/rpc/get_transaction_waiver')
+    expect(request().body).toEqual({
+      target_transaction_id: 'transaction-1',
+    })
   })
   it('replaces database errors with safe, actionable messages', async () => {
     response({ message: 'SQL internal detail', code: '42501' }, 403)
