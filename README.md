@@ -107,6 +107,10 @@ To seed local test identities and starter fixtures for UI walkthroughs:
 npm run db:seed
 ```
 
+The seed command and `supabase/fixtures.sql` are for local development and
+testing only. Do not run them against production or include them in a Vercel
+build.
+
 Seeded test accounts:
 - Owner: `owner@piercingcorner.test` (password: `password123`)
 - Staff: `staff@piercingcorner.test` (password: `password123`)
@@ -121,6 +125,37 @@ Clients contract, [Phase 3](docs/phase-3.md) for catalog management, and
 [Phase 6](docs/phase-6.md) for completed Sales, Owner Overview, and Reports.
 See [Studio scheduling](docs/studio-scheduling.md) for hours, qualifications,
 availability, exceptions, and station administration.
+
+## Vercel deployment
+
+The frontend is deployed to Vercel. Database, Auth, Storage, Row Level Security,
+and RPCs remain hosted by Supabase.
+
+1. Create or select the hosted Supabase project for production.
+2. Link the local Supabase CLI to it, then push the checked-in migrations:
+
+   ```bash
+   supabase login
+   supabase link --project-ref <project-ref>
+   supabase db push
+   ```
+
+3. Do not use `npm run db:seed` or `supabase/fixtures.sql` as production data;
+   provision production accounts and data separately.
+4. Import the GitHub repository into Vercel and use these project settings:
+   - Framework Preset: Vite
+   - Build Command: `npm run build`
+   - Output Directory: `dist`
+   - Install Command: `npm install`
+5. Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` to the appropriate
+   Vercel environments. Use the hosted Supabase project values, not localhost
+   values, and never add a service-role key to the frontend.
+6. If an authentication flow uses redirects, add the deployed Vercel domain to
+   the Supabase Authentication URL Configuration (Site URL and/or redirect URL
+   allow list as appropriate).
+
+The root `vercel.json` rewrites requests to `index.html`, allowing React Router
+to handle direct navigation and refreshes on client-side routes.
 
 ## Architecture
 
