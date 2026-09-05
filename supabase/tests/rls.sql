@@ -66,9 +66,35 @@ values
   ('00000000-0000-0000-0000-000000000302', 3, 'Template version three', '00000000-0000-0000-0000-000000000001');
 
 select pg_temp.assert_true(
-  has_table_privilege('authenticated', 'public.staff_accounts', 'select'),
-  'authenticated must have SELECT privilege before staff-account RLS can run'
-);
+  bool_and(
+    has_table_privilege(
+      'authenticated',
+      format('public.%I', required.table_name),
+      required.privilege
+    )
+  ),
+  'authenticated must have the table privileges required by its RLS policies'
+)
+from (
+  values
+    ('staff_accounts', 'select'),
+    ('clients', 'select'), ('clients', 'insert'), ('clients', 'update'),
+    ('services', 'select'), ('services', 'insert'), ('services', 'update'),
+    ('products', 'select'), ('products', 'insert'), ('products', 'update'),
+    ('transactions', 'select'), ('transactions', 'insert'), ('transactions', 'update'),
+    ('transaction_items', 'select'), ('transaction_items', 'insert'), ('transaction_items', 'update'), ('transaction_items', 'delete'),
+    ('payments', 'select'), ('payments', 'insert'),
+    ('waiver_templates', 'select'), ('waiver_templates', 'insert'),
+    ('waivers', 'select'),
+    ('transaction_adjustments', 'select'),
+    ('piercer_profiles', 'select'), ('piercer_profiles', 'insert'), ('piercer_profiles', 'update'),
+    ('stations', 'select'), ('stations', 'insert'), ('stations', 'update'),
+    ('studio_hours', 'select'), ('studio_hours', 'update'),
+    ('piercer_service_qualifications', 'select'), ('piercer_service_qualifications', 'insert'), ('piercer_service_qualifications', 'update'), ('piercer_service_qualifications', 'delete'),
+    ('piercer_availability', 'select'), ('piercer_availability', 'insert'), ('piercer_availability', 'update'), ('piercer_availability', 'delete'),
+    ('studio_exceptions', 'select'), ('studio_exceptions', 'insert'), ('studio_exceptions', 'update'), ('studio_exceptions', 'delete'),
+    ('business_profile', 'select'), ('business_profile', 'update')
+) as required(table_name, privilege);
 
 set local role authenticated;
 select set_config('request.jwt.claim.role', 'authenticated', true);
@@ -110,15 +136,19 @@ begin
   select count(*) into account_count from public.staff_accounts;
   perform pg_temp.assert_true(account_count = 1, 'Staff must read only their own account');
 
-  with changed as (
-    update public.staff_accounts
-    set role = 'owner'
-    where id = '00000000-0000-0000-0000-000000000002'
-    returning id
-  )
-  select count(*) into changed_count from changed;
+  begin
+    with changed as (
+      update public.staff_accounts
+      set role = 'owner'
+      where id = '00000000-0000-0000-0000-000000000002'
+      returning id
+    )
+    select count(*) into changed_count from changed;
 
-  perform pg_temp.assert_true(changed_count = 0, 'Staff role escalation must be denied');
+    perform pg_temp.assert_true(changed_count = 0, 'Staff role escalation must be denied');
+  exception
+    when insufficient_privilege then null;
+  end;
 
   perform pg_temp.assert_true(
     (select count(*) = 0 from public.business_profile),

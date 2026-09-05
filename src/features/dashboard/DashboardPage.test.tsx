@@ -270,16 +270,22 @@ describe('Dashboard transaction workflow', () => {
     const paymentMethod = within(payment).getByRole('combobox', { name: 'Payment method' })
     fireEvent.keyDown(paymentMethod, { key: 'ArrowDown' })
     expect(within(payment).queryByRole('option', { name: 'Other' })).not.toBeInTheDocument()
-    fireEvent.keyDown(paymentMethod, { key: 'Escape' })
+    fireEvent.click(screen.getByRole('option', { name: 'GCash' }))
+    fireEvent.change(within(payment).getByRole('textbox', { name: 'Reference number' }), {
+      target: { value: ' GCASH-12345 ' },
+    })
     fireEvent.click(within(payment).getByRole('button', { name: 'Complete Payment' }))
     await waitFor(() =>
       expect(service.recordProductSale).toHaveBeenCalledWith({
         existingClient: { id: 'client-1', full_name: 'Ana Cruz', email: null, phone: null },
         newClient: { first_name: '', last_name: '', email: '', phone: '' },
         productIds: ['product-1'],
-        payment: { method: 'cash', reference: '' },
+        payment: { method: 'gcash', reference: ' GCASH-12345 ' },
       }, expect.anything()),
     )
+    const completed = await screen.findByRole('dialog', { name: 'Sale completed' })
+    expect(within(completed).getByText('GCash')).toBeVisible()
+    expect(within(completed).getByText('GCASH-12345')).toBeVisible()
   })
 
   it('loads the pinned waiver template for a service sale', async () => {

@@ -1141,6 +1141,42 @@
   line-height: 1.5;
 }
 
+.completion-payment {
+  display: grid;
+  width: min(320px, 100%);
+  margin: 4px 0;
+  overflow: hidden;
+  border: 1.5px solid var(--dashboard-ink);
+  border-radius: 12px;
+  background: var(--dashboard-ink);
+  gap: 1px;
+  text-align: left;
+}
+
+.completion-payment > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 12px;
+  background: #fffdf7;
+}
+
+.completion-payment dt {
+  color: var(--dashboard-muted);
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.completion-payment dd {
+  margin: 0;
+  color: var(--dashboard-ink);
+  font-size: 11px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
 /* Waiver signing */
 .waiver-terms {
   border: 1px dashed var(--dashboard-line);

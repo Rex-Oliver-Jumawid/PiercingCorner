@@ -87,13 +87,14 @@ Calendar, or Overview pages.
 | Waiver-template update/delete | Denied | Denied |
 | Signed-waiver update/delete | Denied | Denied |
 
-Every application table enables RLS. Security-definer helper functions only
+Every application table enables RLS. The `authenticated` PostgreSQL role has
+only the table-level statement privileges needed by the corresponding RLS
+policies; possessing a table privilege does not bypass their row checks.
+Security-definer helper functions only
 answer active-account, owner, open-transaction, and current-template questions;
 they pin `search_path` and schema-qualify reads. Inactive accounts fail the
 active-account test and receive no normal application access. `staff_accounts`
-explicitly grants `SELECT` to the authenticated PostgREST role so account
-resolution can reach its RLS policies. It has no normal INSERT/UPDATE/DELETE
-policy, so a Staff member cannot promote
+has no normal INSERT/UPDATE/DELETE privilege or policy, so a Staff member cannot promote
 themselves or anyone else. Future account management requires a reviewed
 server-side/Admin API boundary.
 
