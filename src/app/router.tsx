@@ -1,8 +1,18 @@
-import { Navigate, createBrowserRouter } from 'react-router-dom'
+import { createBrowserRouter } from 'react-router-dom'
+import type { ReactNode } from 'react'
+import type { RouteObject } from 'react-router-dom'
 
 import { AppShell } from '../components/layout/AppShell'
 import { LoginPage } from '../features/auth/LoginPage'
 import { ProtectedRoute } from '../features/auth/ProtectedRoute'
+import { RoleLandingRedirect } from '../features/auth/RoleLandingRedirect'
+import { UnknownRouteRedirect } from '../features/auth/UnknownRouteRedirect'
+import {
+  AUTHENTICATED_ROLES,
+  OWNER_ONLY_ROLES,
+  applicationRoutes,
+} from '../features/auth/routeAccess'
+import type { ApplicationPath } from '../features/auth/routeAccess'
 import { CalendarPage } from '../features/calendar/CalendarPage'
 import { ClientsPage } from '../features/clients/ClientsPage'
 import { DashboardPage } from '../features/dashboard/DashboardPage'
@@ -12,7 +22,26 @@ import { SalesPage } from '../features/sales/SalesPage'
 import { SettingsPage } from '../features/settings/SettingsPage'
 import { StudioPage } from '../features/studio/StudioPage'
 
-export const router = createBrowserRouter([
+const routeElements: Record<ApplicationPath, ReactNode> = {
+  '/overview': <OverviewPage />,
+  '/dashboard': <DashboardPage />,
+  '/clients': <ClientsPage />,
+  '/sales': <SalesPage />,
+  '/reports': <ReportsPage />,
+  '/studio': <StudioPage />,
+  '/settings': <SettingsPage />,
+  '/calendar': <CalendarPage />,
+}
+
+const sharedRoutes = applicationRoutes
+  .filter(({ roles }) => roles === AUTHENTICATED_ROLES)
+  .map(({ path }) => ({ path: path.slice(1), element: routeElements[path] }))
+
+const ownerRoutes = applicationRoutes
+  .filter(({ roles }) => roles === OWNER_ONLY_ROLES)
+  .map(({ path }) => ({ path: path.slice(1), element: routeElements[path] }))
+
+export const appRoutes: RouteObject[] = [
   {
     element: <ProtectedRoute />,
     children: [
@@ -20,24 +49,18 @@ export const router = createBrowserRouter([
         path: '/',
         element: <AppShell />,
         children: [
-          { index: true, element: <Navigate replace to="/dashboard" /> },
-          { path: 'dashboard', element: <DashboardPage /> },
-          { path: 'clients', element: <ClientsPage /> },
+          { index: true, element: <RoleLandingRedirect /> },
+          ...sharedRoutes,
           {
-            element: <ProtectedRoute allowedRoles={['owner']} />,
-            children: [
-              { path: 'overview', element: <OverviewPage /> },
-              { path: 'sales', element: <SalesPage /> },
-              { path: 'reports', element: <ReportsPage /> },
-              { path: 'studio', element: <StudioPage /> },
-              { path: 'settings', element: <SettingsPage /> },
-              { path: 'calendar', element: <CalendarPage /> },
-            ],
+            element: <ProtectedRoute allowedRoles={OWNER_ONLY_ROLES} />,
+            children: ownerRoutes,
           },
         ],
       },
     ],
   },
   { path: '/login', element: <LoginPage /> },
-  { path: '*', element: <Navigate replace to="/" /> },
-])
+  { path: '*', element: <UnknownRouteRedirect /> },
+]
+
+export const router = createBrowserRouter(appRoutes)

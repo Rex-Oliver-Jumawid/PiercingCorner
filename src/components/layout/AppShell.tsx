@@ -1,18 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom'
 
+import { getRoutesForRole } from '../../features/auth/routeAccess'
 import { useAuth } from '../../features/auth/useAuth'
-import type { AppRole } from '../../features/auth/types'
-
-const navigationItems: Array<{ to: string; label: string; roles: AppRole[] }> = [
-  { to: '/overview', label: 'Overview', roles: ['owner'] },
-  { to: '/dashboard', label: 'Dashboard', roles: ['owner', 'staff'] },
-  { to: '/clients', label: 'Clients', roles: ['owner', 'staff'] },
-  { to: '/sales', label: 'Sales', roles: ['owner'] },
-  { to: '/reports', label: 'Reports', roles: ['owner'] },
-  { to: '/studio', label: 'Studio', roles: ['owner'] },
-  { to: '/settings', label: 'Settings', roles: ['owner'] },
-  { to: '/calendar', label: 'Calendar', roles: ['owner'] },
-]
 
 export function AppShell() {
   const { account, signOut } = useAuth()
@@ -28,9 +17,8 @@ export function AppShell() {
             </p>
           </div>
           <nav aria-label="Primary navigation" className="flex flex-wrap gap-1">
-            {navigationItems
-              .filter(({ roles }) => account && roles.includes(account.role))
-              .map(({ to, label }) => (
+            {account
+              ? getRoutesForRole(account.role).map(({ path, label }) => (
                 <NavLink
                   className={({ isActive }) =>
                     `rounded px-3 py-1.5 text-sm transition ${
@@ -39,12 +27,13 @@ export function AppShell() {
                         : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'
                     }`
                   }
-                  key={to}
-                  to={to}
+                  key={path}
+                  to={path}
                 >
                   {label}
                 </NavLink>
-              ))}
+                ))
+              : null}
           </nav>
           <button
             className="rounded px-3 py-1.5 text-sm text-stone-600 transition hover:bg-stone-100 hover:text-stone-900"

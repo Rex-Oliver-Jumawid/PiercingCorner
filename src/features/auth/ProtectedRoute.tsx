@@ -1,13 +1,14 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 
+import { AUTHENTICATED_ROLES, getDefaultRouteForRole } from './routeAccess'
 import type { AppRole } from './types'
 import { useAuth } from './useAuth'
 
 interface ProtectedRouteProps {
-  allowedRoles?: AppRole[]
+  allowedRoles?: readonly AppRole[]
 }
 
-export function ProtectedRoute({ allowedRoles = ['owner', 'staff'] }: ProtectedRouteProps) {
+export function ProtectedRoute({ allowedRoles = AUTHENTICATED_ROLES }: ProtectedRouteProps) {
   const { account, status } = useAuth()
   const location = useLocation()
 
@@ -27,7 +28,7 @@ export function ProtectedRoute({ allowedRoles = ['owner', 'staff'] }: ProtectedR
   }
 
   if (!allowedRoles.includes(account.role)) {
-    return <Navigate replace to="/dashboard" />
+    return <Navigate replace to={getDefaultRouteForRole(account.role)} />
   }
 
   return <Outlet />

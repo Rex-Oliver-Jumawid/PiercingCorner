@@ -4,12 +4,15 @@ PiercingCorner is a management system for a piercing studio in Parañaque.
 
 ## Current implementation status
 
-**Phase 1A — Staff authentication + route authorization**
+**Phase 1A — COMPLETE (implementation); live Supabase walkthrough pending**
 
 Implemented: the Phase 0A frontend scaffold, migration-driven PostgreSQL schema,
 generated Supabase database types, Row Level Security policies, email/password
 staff Login, active-account resolution, authenticated session restoration, and
-Owner/Staff route guards for the closed access model.
+Owner/Staff route guards for the closed access model. Root, Login, and unknown
+routes use the approved Owner `/overview` and Staff `/dashboard` landing rules.
+Auth events synchronize application accounts while logout and genuine identity
+changes clear identity-sensitive TanStack Query state.
 
 Deliberately not implemented: Google OAuth, public booking, client/catalog CRUD,
 transaction workflow/finalization RPC, signatures/PDFs, Storage uploads,
@@ -36,6 +39,7 @@ Run checks before a change is handed off:
 ```bash
 npm run lint
 npm run build
+npm test
 ```
 
 The build command includes TypeScript project verification (`tsc -b`). To preview
@@ -94,6 +98,5 @@ access role; it will be modeled separately as a studio/service qualification.
 
 ## Next
 
-Review Phase 1A against a configured Supabase project, then begin catalog CRUD.
-Do not begin the transaction workflow until the authentication boundary and
-catalog behavior have been reviewed.
+Run the pending Phase 1A Owner/Staff/inactive-account walkthrough when safe local
+Supabase test identities are available. Phase 1B has not been started.
