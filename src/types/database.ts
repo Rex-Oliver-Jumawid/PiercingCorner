@@ -898,6 +898,8 @@ export type Database = {
           clients: number
           collected: number
           open_transactions: number
+          studio_days_configured: number
+          studio_open_days: number
           today_transactions: number
           waiver_template_version: number
         }[]

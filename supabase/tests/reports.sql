@@ -48,6 +48,10 @@ set local role authenticated;
 select set_config('request.jwt.claim.role','authenticated',true);
 select set_config('request.jwt.claim.sub','60000000-0000-0000-0000-000000000001',true);
 
+select pg_temp.assert_true((select studio_days_configured = 7 and studio_open_days = 6 from public.get_owner_overview()), 'Owner overview must report the configured weekly Studio Hours');
+update public.studio_hours set is_open = false, opens_at = null, closes_at = null;
+select pg_temp.assert_true((select studio_days_configured = 7 and studio_open_days = 0 from public.get_owner_overview()), 'Owner overview must distinguish an intentionally closed week');
+
 select pg_temp.assert_true((select net_revenue = 650 and completed_transactions = 3 and adjustments = 0 from public.get_sales_metrics()), 'sales metrics must start from completed payment facts without adjustments');
 select pg_temp.assert_true((select count(*) = 2 from public.search_completed_sales('formula','all',null,null,null)), 'sale search must be literal over the client snapshot');
 select pg_temp.assert_true((select count(*) = 2 from public.search_completed_sales('','product',null,null,null)), 'product filter must include product and mixed transactions');
