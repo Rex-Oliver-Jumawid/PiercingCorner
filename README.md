@@ -4,7 +4,7 @@ PiercingCorner is a management system for a piercing studio in Parañaque.
 
 ## Current implementation status
 
-**Phase 5 — COMPLETE**
+**Phase 6 — COMPLETE**
 
 Implemented: the Phase 0A frontend scaffold, migration-driven PostgreSQL schema,
 generated Supabase database types, Row Level Security policies, email/password
@@ -25,11 +25,13 @@ database functions with server-derived snapshots, totals, payment facts, and
 completion. Service sales now pin versioned consent, capture a drawn signature,
 generate an A4 PDF with the server signing time, persist both private artifacts,
 and continue directly to full payment. Pending transactions provide recovery
-when signing persistence or payment is interrupted.
+when signing persistence or payment is interrupted. Owner Overview, Sales, and
+Reports now derive completion metrics, immutable completed-sale history, and
+Manila-range analytics from PostgreSQL. Reports can export formula-safe CSV.
 
 Deliberately not implemented: Google OAuth, public booking, public waiver links,
-guardian/minor consent, dashboard metrics,
-reports and the remaining Studio scheduling model. The authenticated shell now
+guardian/minor consent, refunds/voids, XLSX export,
+studio-hours analytics and the remaining Studio scheduling model. The authenticated shell now
 uses the approved responsive application design.
 
 ## Stack
@@ -106,14 +108,15 @@ transaction boundaries. See [Phase 1A](docs/phase-1a.md) for the Login and
 route-authorization acceptance checklist, [Phase 2](docs/phase-2.md) for the
 Clients contract, [Phase 3](docs/phase-3.md) for catalog management, and
 [Phase 4](docs/phase-4.md) for the Dashboard transaction workflow, and
-[Phase 5](docs/phase-5.md) for durable consent and private PDF storage.
+[Phase 5](docs/phase-5.md) for durable consent and private PDF storage, and
+[Phase 6](docs/phase-6.md) for completed Sales, Owner Overview, and Reports.
 
 ## Architecture
 
 - `src/app`: application composition, providers, and route declarations.
 - `src/features`: feature-local pages, components, hooks, and types. Current
-  placeholders establish the future Dashboard, Clients, Sales, Reports, Studio,
-  Settings, and Auth boundaries.
+  boundaries implement Dashboard, Clients, Sales, Reports, Overview, Studio,
+  Settings, and Auth capabilities.
 - `src/components`: shared presentation primitives and the responsive authenticated
   application shell.
 - `src/lib`: shared infrastructure, currently the Query client and Supabase
@@ -127,5 +130,5 @@ access role; it will be modeled separately as a studio/service qualification.
 
 ## Next
 
-Phase 6 will build the Sales list, Dashboard metrics, and reports over the
-transaction and payment facts now produced by Record Sale.
+Phase 7 will complete the responsive polish, deployment preparation, and the
+end-to-end production walkthrough.

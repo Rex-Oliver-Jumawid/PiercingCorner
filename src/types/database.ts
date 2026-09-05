@@ -268,6 +268,8 @@ export type Database = {
       transactions: {
         Row: {
           client_id: string
+          client_name_snapshot: string
+          completed_at: string | null
           created_at: string
           created_by: string
           id: string
@@ -277,6 +279,8 @@ export type Database = {
         }
         Insert: {
           client_id: string
+          client_name_snapshot: string
+          completed_at?: string | null
           created_at?: string
           created_by?: string
           id?: string
@@ -286,6 +290,8 @@ export type Database = {
         }
         Update: {
           client_id?: string
+          client_name_snapshot?: string
+          completed_at?: string | null
           created_at?: string
           created_by?: string
           id?: string
@@ -534,6 +540,33 @@ export type Database = {
           phone: string
         }[]
       }
+      get_completed_sale: {
+        Args: { target_transaction_id: string }
+        Returns: {
+          client_name: string
+          completed_at: string
+          has_waiver: boolean
+          id: string
+          items: Json
+          paid: number
+          payments: Json
+          recorded_by_name: string
+          reference_code: string
+          total: number
+        }[]
+      }
+      get_owner_overview: {
+        Args: never
+        Returns: {
+          active_products: number
+          active_services: number
+          clients: number
+          collected: number
+          open_transactions: number
+          today_transactions: number
+          waiver_template_version: number
+        }[]
+      }
       get_recoverable_waiver_signing: {
         Args: { target_transaction_id: string }
         Returns: {
@@ -547,6 +580,49 @@ export type Database = {
           template_id: string
           template_version: number
           total: number
+        }[]
+      }
+      get_report_summary: {
+        Args: { from_date: string; to_date: string }
+        Returns: {
+          average_customer_visits_per_day: number
+          average_transaction_value: number
+          completed_transactions: number
+          peak_hour: number
+          peak_hour_average: number
+          product_attach_rate: number
+          repeat_client_rate: number
+          repeat_clients: number
+          revenue: number
+          service_transactions: number
+          unique_clients: number
+        }[]
+      }
+      get_report_top_services: {
+        Args: { from_date: string; to_date: string }
+        Returns: {
+          completed_quantity: number
+          revenue: number
+          service_id: string
+          service_name: string
+          service_share: number
+        }[]
+      }
+      get_report_weekday_traffic: {
+        Args: { from_date: string; to_date: string }
+        Returns: {
+          average_visits: number
+          represented_days: number
+          total_visits: number
+          weekday: number
+        }[]
+      }
+      get_sales_metrics: {
+        Args: never
+        Returns: {
+          collected: number
+          completed_transactions: number
+          service_sales: number
         }[]
       }
       get_transaction_waiver: {
@@ -609,6 +685,29 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      search_completed_sales: {
+        Args: {
+          from_date?: string
+          payment_method_filter?: Database["public"]["Enums"]["payment_method"]
+          sale_type?: string
+          search_text?: string
+          to_date?: string
+        }
+        Returns: {
+          client_name: string
+          completed_at: string
+          has_product: boolean
+          has_service: boolean
+          has_waiver: boolean
+          id: string
+          items: Json
+          paid: number
+          payment_methods: string[]
+          recorded_by_name: string
+          reference_code: string
+          total: number
+        }[]
       }
       search_dashboard_transactions: {
         Args: { search_text?: string }

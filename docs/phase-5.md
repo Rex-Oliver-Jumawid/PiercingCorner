@@ -53,3 +53,9 @@ resume payment from Dashboard without signing again.
 Typed signatures, guardian/minor consent, identity verification, public links,
 email delivery, piercer/station assignment, split payments, refunds and legal
 template administration remain outside Phase 5.
+
+## Phase 6 continuation
+
+Phase 6 now projects completed waiver-backed and product-only transactions into
+the Owner Sales, Overview, and Reports pages. It adds immutable completion and
+client snapshot facts without changing the Phase 5 signing or payment order.

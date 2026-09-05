@@ -22,6 +22,10 @@
 --    Status: inactive
 
 -- Clean up any existing fixture records first to allow idempotent re-runs
+DELETE FROM public.payments WHERE transaction_id::text LIKE 'a1000000-%';
+DELETE FROM public.transaction_items WHERE transaction_id::text LIKE 'a1000000-%';
+DELETE FROM public.transactions WHERE id::text LIKE 'a1000000-%';
+DELETE FROM public.clients WHERE id::text LIKE 'a1000000-%';
 DELETE FROM public.staff_accounts WHERE id IN (
   'a0000000-0000-0000-0000-000000000001',
   'a0000000-0000-0000-0000-000000000002',
@@ -156,21 +160,45 @@ VALUES
   ('a0000000-0000-0000-0000-000000000002', 'Senior Piercer', 'staff', 'active'),
   ('a0000000-0000-0000-0000-000000000003', 'Former Staff', 'staff', 'inactive');
 
--- Initial Services
-INSERT INTO public.services (name, price, active)
+INSERT INTO public.clients (id, full_name, email, phone, created_by)
 VALUES
-  ('Lobe Piercing', 500.00, true),
-  ('Helix Piercing', 800.00, true),
-  ('Nostril Piercing', 900.00, true),
-  ('Industrial Piercing', 1500.00, true),
-  ('Archived Service', 400.00, false)
+  ('a1000000-0000-0000-0000-000000000001', 'Camille Flores', 'camille@example.test', '09170000001', 'a0000000-0000-0000-0000-000000000001'),
+  ('a1000000-0000-0000-0000-000000000002', 'Daniel Ramirez', 'daniel@example.test', '09170000002', 'a0000000-0000-0000-0000-000000000002'),
+  ('a1000000-0000-0000-0000-000000000003', 'Nina Soriano', null, '09170000003', 'a0000000-0000-0000-0000-000000000001');
+
+-- Initial Services
+INSERT INTO public.services (id, name, price, active)
+VALUES
+  ('a2000000-0000-0000-0000-000000000001', 'Lobe Piercing', 500.00, true),
+  ('a2000000-0000-0000-0000-000000000002', 'Helix Piercing', 800.00, true),
+  ('a2000000-0000-0000-0000-000000000003', 'Nostril Piercing', 900.00, true),
+  ('a2000000-0000-0000-0000-000000000004', 'Industrial Piercing', 1500.00, true),
+  ('a2000000-0000-0000-0000-000000000005', 'Archived Service', 400.00, false)
 ON CONFLICT DO NOTHING;
 
 -- Initial Products
-INSERT INTO public.products (name, price, active)
+INSERT INTO public.products (id, name, price, active)
 VALUES
-  ('Aftercare Saline Spray (75ml)', 350.00, true),
-  ('Titanium Flat-Back Stud', 600.00, true),
-  ('Bioflex Retainer', 200.00, true),
-  ('Discontinued Cleaner', 250.00, false)
+  ('a3000000-0000-0000-0000-000000000001', 'Aftercare Saline Spray (75ml)', 350.00, true),
+  ('a3000000-0000-0000-0000-000000000002', 'Titanium Flat-Back Stud', 600.00, true),
+  ('a3000000-0000-0000-0000-000000000003', 'Bioflex Retainer', 200.00, true),
+  ('a3000000-0000-0000-0000-000000000004', 'Discontinued Cleaner', 250.00, false)
 ON CONFLICT DO NOTHING;
+
+INSERT INTO public.transactions (id, reference_code, client_id, status, created_by)
+VALUES
+  ('a1000000-0000-0000-0000-000000000011', 'TXN-DEMO-000001', 'a1000000-0000-0000-0000-000000000001', 'completed', 'a0000000-0000-0000-0000-000000000001'),
+  ('a1000000-0000-0000-0000-000000000012', 'TXN-DEMO-000002', 'a1000000-0000-0000-0000-000000000002', 'completed', 'a0000000-0000-0000-0000-000000000002'),
+  ('a1000000-0000-0000-0000-000000000013', 'TXN-DEMO-000003', 'a1000000-0000-0000-0000-000000000003', 'pending', 'a0000000-0000-0000-0000-000000000002');
+
+INSERT INTO public.transaction_items (transaction_id, item_type, service_id, product_id, item_name_snapshot, unit_price_snapshot, quantity)
+VALUES
+  ('a1000000-0000-0000-0000-000000000011', 'service', 'a2000000-0000-0000-0000-000000000001', null, 'Lobe Piercing', 500.00, 1),
+  ('a1000000-0000-0000-0000-000000000011', 'product', null, 'a3000000-0000-0000-0000-000000000001', 'Aftercare Saline Spray (75ml)', 350.00, 1),
+  ('a1000000-0000-0000-0000-000000000012', 'product', null, 'a3000000-0000-0000-0000-000000000002', 'Titanium Flat-Back Stud', 600.00, 1),
+  ('a1000000-0000-0000-0000-000000000013', 'service', 'a2000000-0000-0000-0000-000000000002', null, 'Helix Piercing', 800.00, 1);
+
+INSERT INTO public.payments (transaction_id, amount, payment_method, reference_number, recorded_by)
+VALUES
+  ('a1000000-0000-0000-0000-000000000011', 850.00, 'cash', null, 'a0000000-0000-0000-0000-000000000001'),
+  ('a1000000-0000-0000-0000-000000000012', 600.00, 'gcash', 'GC-DEMO-0002', 'a0000000-0000-0000-0000-000000000002');

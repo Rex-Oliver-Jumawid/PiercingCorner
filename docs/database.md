@@ -32,7 +32,7 @@ it leaves no sample accounts or business records in the local database.
 | `staff_accounts` | One-to-one application-account metadata for `auth.users`; display name, `owner`/`staff`, and active/inactive status only. |
 | `clients` | Minimal walk-in-friendly client record. |
 | `services` / `products` | Deactivatable catalogs with exact `numeric(12,2)` prices. |
-| `transactions` | Operational Dashboard transaction, not an appointment or draft sale. |
+| `transactions` | Operational Dashboard transaction with immutable client snapshot and first completion timestamp; not an appointment or draft sale. |
 | `transaction_items` | Service/product lines with name and price snapshots. |
 | `payments` | Recorded payment facts; never gateway credentials. |
 | `waiver_templates` | Append-only numbered consent-template versions. |
@@ -173,3 +173,23 @@ remains Pending for Dashboard recovery. Product-only transactions have no waiver
 requirement and the schema adds no `awaiting_waiver` status. Studio profiles,
 financial adjustments, legal template administration, and secure account
 management remain deferred.
+
+## Phase 6 completed sales and reporting
+
+`transactions.client_name_snapshot` is established on insertion and cannot be
+rewritten. `completed_at` is stamped by PostgreSQL on the first transition to
+`completed` and remains write-once. Migration backfill uses the latest payment
+or transaction update time as a best-effort approximation for older completed
+records only.
+
+Owner-only reporting RPCs provide Overview metrics, all-time Sales metrics,
+completed-sale search/details, report summaries, top services, and weekday
+traffic. Each is `security definer`, uses an empty `search_path`, and independently
+requires `is_owner()`. Sales never passes date filters; Reports passes inclusive
+Manila dates to the shared completed-sales projection.
+
+Revenue is the sum of recorded payments belonging to completed transactions.
+Transaction totals remain derived from immutable item snapshots. Report exports
+are generated in the browser as UTF-8 BOM CSV after spreadsheet-formula
+neutralization and RFC 4180 serialization; no public financial export endpoint
+or new financial entity is introduced.

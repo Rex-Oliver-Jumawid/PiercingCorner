@@ -55,6 +55,9 @@ export function useDashboardMutation<TVariables, TResult>(
       await Promise.all([
         cache.invalidateQueries({ queryKey: scope }),
         cache.invalidateQueries({ queryKey: ['clients', account?.id, account?.role] }),
+        cache.invalidateQueries({ queryKey: ['overview', account?.id, account?.role] }),
+        cache.invalidateQueries({ queryKey: ['sales', account?.id, account?.role] }),
+        cache.invalidateQueries({ queryKey: ['reports', account?.id, account?.role] }),
       ])
       if (mounted.current) onSaved?.(result)
     },
