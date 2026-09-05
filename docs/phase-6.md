@@ -23,7 +23,10 @@ controls. Reports reuses the same query with optional inclusive Manila dates.
 ## Owner pages
 
 - Overview shows today's transaction/open counts, total clients, collected
-  payments, a read-only today table, and current catalog/waiver readiness.
+  payments, a read-only today table, and current Studio Hours, catalog, and
+  waiver readiness. Studio Hours are ready only when all seven days are
+  configured and at least one day is open; an intentionally all-closed week is
+  reported separately from an incomplete schedule.
 - Sales shows net revenue, completed transactions, and refund/void adjustment
   totals. Rows open immutable items, payments, adjustment history, recorder,
   completion time, and private waiver access. Owners can cancel a completed sale

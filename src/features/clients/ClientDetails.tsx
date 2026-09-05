@@ -1,7 +1,13 @@
 import { useState } from 'react'
 import { ClientDialog, ClientError, Pagination } from './ClientDialog'
 import { ClientForm } from './ClientForm'
-import { useClient, useHistory, useTransaction } from './clientQueries'
+import {
+  useClient,
+  useHistory,
+  useTransaction,
+  useTransactionWaiver,
+} from './clientQueries'
+import { downloadWaiverPdf } from './clientService'
 import { cents, dateTime, money } from './clientModel'
 
 function TransactionDetails({
@@ -16,11 +22,33 @@ function TransactionDetails({
   const query = useTransaction(clientId, transactionId)
   const transaction = query.data
   const items = transaction?.transaction_items ?? []
+  const hasServices = items.some((item) => item.item_type === 'service')
+  const waiver = useTransactionWaiver(
+    transactionId,
+    Boolean(transaction && hasServices),
+  )
+  const [waiverUnavailable, setWaiverUnavailable] = useState(false)
   const total = items.reduce(
     (sum, item) =>
       sum + cents(item.unit_price_snapshot) * BigInt(item.quantity),
     0n,
   )
+  const isWaiverUnavailable =
+    waiver.isError || waiverUnavailable || (!waiver.isPending && !waiver.data)
+
+  async function openWaiverPdf() {
+    if (!waiver.data) return
+    const target = window.open('', '_blank')
+    try {
+      const blob = await downloadWaiverPdf(waiver.data.pdf_storage_path)
+      const url = URL.createObjectURL(blob)
+      if (target) target.location.href = url
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    } catch {
+      target?.close()
+      setWaiverUnavailable(true)
+    }
+  }
   return (
     <ClientDialog
       title={
@@ -104,6 +132,35 @@ function TransactionDetails({
           ) : (
             <p>No payments recorded.</p>
           )}
+          {hasServices ? (
+            <section className="client-waiver-section">
+              <h3>Signed waiver</h3>
+              <div
+                className={`client-waiver-card${
+                  isWaiverUnavailable ? ' unavailable' : ''
+                }`}
+              >
+                {waiver.isPending ? <p>Loading signed waiver…</p> : null}
+                {isWaiverUnavailable ? (
+                  <p>Waiver record unavailable.</p>
+                ) : null}
+                {waiver.data && !waiverUnavailable ? (
+                  <>
+                    <strong>Signed waiver</strong>
+                    <p>Template version {waiver.data.template_version}</p>
+                    <p>Signed {dateTime(waiver.data.signed_at, true)}</p>
+                    <button
+                      type="button"
+                      className="client-button"
+                      onClick={() => void openWaiverPdf()}
+                    >
+                      View Waiver PDF
+                    </button>
+                  </>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
         </>
       ) : null}
     </ClientDialog>

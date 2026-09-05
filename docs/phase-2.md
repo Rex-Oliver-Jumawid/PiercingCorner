@@ -26,8 +26,11 @@ TanStack Query, Supabase, and RLS boundaries.
 The accessible client drawer shows contact details and all transaction statuses.
 History uses Manila timestamps, newest-first ordering, snapshot item names, and
 a read-only transaction dialog. The dialog derives totals from exact centavo
-values and displays recorded payment facts. It deliberately omits recorder and
-piercer names, stations, waiver PDFs, and transaction mutations.
+values and displays recorded payment facts. Product-only transactions omit waiver
+UI. Service transactions show their historical signed-waiver metadata after the
+payments section and allow the existing private PDF to be viewed; an unavailable
+record is presented as a non-blocking historical-data state. The dialog deliberately
+omits recorder and piercer names, stations, and transaction mutations.
 
 The list's transaction count includes every status. Last activity is the latest
 transaction `updated_at`, or “No transactions” when no transaction exists.

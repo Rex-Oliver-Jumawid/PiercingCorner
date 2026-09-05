@@ -112,10 +112,6 @@ function SalesWorkspace() {
           />
         </div>
 
-        <p className="mx-4 my-2.5 rounded-[10px] border border-dashed border-[#c88f6e] bg-[#fff3d8] p-2.5 text-[10px] text-[#755448]">
-          <strong>No Draft sales:</strong> this page contains completed financial records and their appended refund or void adjustments. Unpaid operational transactions remain on Dashboard.
-        </p>
-
         {sales.isPending ? <p role="status" className="sales-message">Loading completed sales…</p> : null}
         {sales.isError ? (
           <div role="alert" className="sales-message sales-error">

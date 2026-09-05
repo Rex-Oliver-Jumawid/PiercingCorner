@@ -7,6 +7,7 @@ import {
   Search,
   UsersRound,
 } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { MetricCard } from '../../components/ui/MetricCard'
 import {
   dashField,
@@ -30,6 +31,19 @@ function OverviewWorkspace() {
   const [committedSearch, setCommittedSearch] = useState('')
   const overview = useOwnerOverview()
   const transactions = useTransactions(committedSearch)
+  const studioDaysConfigured = overview.data?.studio_days_configured ?? 0
+  const studioOpenDays = overview.data?.studio_open_days ?? 0
+  const studioHoursReady = studioDaysConfigured === 7 && studioOpenDays > 0
+  const studioHoursDescription = studioDaysConfigured !== 7
+    ? `${studioDaysConfigured} of 7 days configured`
+    : studioOpenDays === 0
+      ? 'All 7 days are marked closed'
+      : `${studioOpenDays} ${studioOpenDays === 1 ? 'day' : 'days'} open each week`
+  const studioHoursStatus = studioDaysConfigured !== 7
+    ? 'Action needed'
+    : studioOpenDays === 0
+      ? 'Closed'
+      : 'Ready'
 
   useEffect(() => {
     const timeout = window.setTimeout(() => setCommittedSearch(search.trim()), 300)
@@ -154,20 +168,20 @@ function OverviewWorkspace() {
                   <p>Items affecting daily operations</p>
                 </div>
               </div>
-              <div className="flex flex-col [&>article:last-child]:border-b-0 [&_strong]:text-[10px] [&_small]:text-[8px] [&_small]:text-studio-muted">
-                <article className="group grid min-h-[61px] grid-cols-[26px_minmax(0,1fr)_auto_14px] items-center gap-x-[9px] border-b border-dashed border-[#d5a684] px-[17px] py-2.5 text-left transition-[background,transform] hover:translate-x-px hover:bg-[#fff1cf]">
-                  <span className="row-span-2 grid size-6 place-items-center rounded-full border border-hippy-ink bg-hippy-gold text-[10px] font-black text-[#664219] shadow-[1px_1px_0_#3b2923]">
-                    !
+              <div className="flex flex-col [&>a:last-child]:border-b-0 [&_strong]:text-[10px] [&_small]:text-[8px] [&_small]:text-studio-muted">
+                <Link aria-label="Go to Studio Hours" to="/studio#studio-hours" className="group grid min-h-[61px] grid-cols-[26px_minmax(0,1fr)_auto_14px] items-center gap-x-[9px] border-b border-dashed border-[#d5a684] px-[17px] py-2.5 text-left text-inherit no-underline transition-[background,transform] hover:translate-x-px hover:bg-[#fff1cf] focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[#3b2923]">
+                  <span className={`row-span-2 grid size-6 place-items-center rounded-full border border-hippy-ink ${studioHoursReady ? 'bg-hippy-sage text-[#274c3c]' : 'bg-hippy-gold text-[#664219]'} text-[10px] font-black shadow-[1px_1px_0_#3b2923]`}>
+                    {studioHoursReady ? '✓' : '!'}
                   </span>
                   <span className="flex min-w-0 flex-col">
                     <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-[#3b2923]">Business hours</strong>
-                    <small>Studio scheduling is not configured</small>
+                    <small>{studioHoursDescription}</small>
                   </span>
-                  <small className="justify-self-end text-[8px] font-black tracking-[.4px] text-[#7b574b] uppercase">Unavailable</small>
+                  <small className="justify-self-end text-[8px] font-black tracking-[.4px] text-[#7b574b] uppercase">{studioHoursStatus}</small>
                   <ChevronRight className="w-3.5 text-[#6f5148]" aria-hidden="true" />
-                </article>
+                </Link>
 
-                <article className="group grid min-h-[61px] grid-cols-[26px_minmax(0,1fr)_auto_14px] items-center gap-x-[9px] border-b border-dashed border-[#d5a684] px-[17px] py-2.5 text-left transition-[background,transform] hover:translate-x-px hover:bg-[#fff1cf]">
+                <Link aria-label="Go to Active services" to="/studio#service-catalog" className="group grid min-h-[61px] grid-cols-[26px_minmax(0,1fr)_auto_14px] items-center gap-x-[9px] border-b border-dashed border-[#d5a684] px-[17px] py-2.5 text-left text-inherit no-underline transition-[background,transform] hover:translate-x-px hover:bg-[#fff1cf] focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[#3b2923]">
                   <span className={`row-span-2 grid size-6 place-items-center rounded-full border border-hippy-ink ${overview.data.active_services ? 'bg-hippy-sage text-[#274c3c]' : 'bg-hippy-gold text-[#664219]'} text-[10px] font-black shadow-[1px_1px_0_#3b2923]`}>
                     {overview.data.active_services ? '✓' : '!'}
                   </span>
@@ -177,9 +191,9 @@ function OverviewWorkspace() {
                   </span>
                   <small className="justify-self-end text-[8px] font-black tracking-[.4px] text-[#7b574b] uppercase">{overview.data.active_services ? 'Ready' : 'Review'}</small>
                   <ChevronRight className="w-3.5 text-[#6f5148]" aria-hidden="true" />
-                </article>
+                </Link>
 
-                <article className="group grid min-h-[61px] grid-cols-[26px_minmax(0,1fr)_auto_14px] items-center gap-x-[9px] border-b border-dashed border-[#d5a684] px-[17px] py-2.5 text-left transition-[background,transform] hover:translate-x-px hover:bg-[#fff1cf]">
+                <Link aria-label="Go to Active products" to="/studio#product-catalog" className="group grid min-h-[61px] grid-cols-[26px_minmax(0,1fr)_auto_14px] items-center gap-x-[9px] border-b border-dashed border-[#d5a684] px-[17px] py-2.5 text-left text-inherit no-underline transition-[background,transform] hover:translate-x-px hover:bg-[#fff1cf] focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[#3b2923]">
                   <span className={`row-span-2 grid size-6 place-items-center rounded-full border border-hippy-ink ${overview.data.active_products ? 'bg-hippy-sage text-[#274c3c]' : 'bg-hippy-gold text-[#664219]'} text-[10px] font-black shadow-[1px_1px_0_#3b2923]`}>
                     {overview.data.active_products ? '✓' : '!'}
                   </span>
@@ -189,9 +203,9 @@ function OverviewWorkspace() {
                   </span>
                   <small className="justify-self-end text-[8px] font-black tracking-[.4px] text-[#7b574b] uppercase">{overview.data.active_products ? 'Ready' : 'Review'}</small>
                   <ChevronRight className="w-3.5 text-[#6f5148]" aria-hidden="true" />
-                </article>
+                </Link>
 
-                <article className="group grid min-h-[61px] grid-cols-[26px_minmax(0,1fr)_auto_14px] items-center gap-x-[9px] border-b border-dashed border-[#d5a684] px-[17px] py-2.5 text-left transition-[background,transform] hover:translate-x-px hover:bg-[#fff1cf]">
+                <Link aria-label="Go to Waiver and Consent" to="/settings#waiver-settings" className="group grid min-h-[61px] grid-cols-[26px_minmax(0,1fr)_auto_14px] items-center gap-x-[9px] border-b border-dashed border-[#d5a684] px-[17px] py-2.5 text-left text-inherit no-underline transition-[background,transform] hover:translate-x-px hover:bg-[#fff1cf] focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[#3b2923]">
                   <span className={`row-span-2 grid size-6 place-items-center rounded-full border border-hippy-ink ${overview.data.waiver_template_version ? 'bg-hippy-sage text-[#274c3c]' : 'bg-hippy-gold text-[#664219]'} text-[10px] font-black shadow-[1px_1px_0_#3b2923]`}>
                     {overview.data.waiver_template_version ? '✓' : '!'}
                   </span>
@@ -201,7 +215,7 @@ function OverviewWorkspace() {
                   </span>
                   <small className="justify-self-end text-[8px] font-black tracking-[.4px] text-[#7b574b] uppercase">{overview.data.waiver_template_version ? 'Ready' : 'Review'}</small>
                   <ChevronRight className="w-3.5 text-[#6f5148]" aria-hidden="true" />
-                </article>
+                </Link>
               </div>
             </aside>
           </div>

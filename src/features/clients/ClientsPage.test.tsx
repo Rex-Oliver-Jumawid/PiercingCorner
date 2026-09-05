@@ -302,6 +302,116 @@ describe('Clients workflow', () => {
     expect(within(dialog).getByText('Total')).toHaveTextContent('₱0.30')
     expect(within(dialog).getByText('cash')).toBeVisible()
     expect(within(dialog).queryByText(/waiver/i)).not.toBeInTheDocument()
+    expect(service.getTransactionWaiver).not.toHaveBeenCalled()
+  })
+  it('shows a read-only historical waiver for a service transaction', async () => {
+    vi.mocked(service.getHistory).mockResolvedValue({
+      rows: [
+        {
+          id: 'transaction-1',
+          reference_code: 'TXN-260905-000001',
+          status: 'completed',
+          created_at: client.created_at,
+          transaction_items: [
+            { item_name_snapshot: 'Lobe Piercing', item_type: 'service' },
+          ],
+        },
+      ],
+      count: 1,
+    })
+    vi.mocked(service.getTransaction).mockResolvedValue({
+      id: 'transaction-1',
+      reference_code: 'TXN-260905-000001',
+      status: 'completed',
+      created_at: client.created_at,
+      transaction_items: [
+        {
+          id: 'item-1',
+          item_name_snapshot: 'Lobe Piercing',
+          item_type: 'service',
+          quantity: 1,
+          unit_price_snapshot: 500,
+        },
+      ],
+      payments: [],
+    })
+    vi.mocked(service.getTransactionWaiver).mockResolvedValue({
+      id: 'waiver-1',
+      signature_storage_path: 'transactions/transaction-1/signature.png',
+      pdf_storage_path: 'transactions/transaction-1/waiver.pdf',
+      signed_at: '2026-09-05T09:18:00Z',
+      template_version: 3,
+    })
+    harness()
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Open Ana Cruz details' }),
+    )
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'TXN-260905-000001' }),
+    )
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Transaction details',
+    })
+    expect(await within(dialog).findByText('Template version 3')).toBeVisible()
+    expect(within(dialog).getByText(/Signed Sep 5, 2026/)).toBeVisible()
+    expect(
+      within(dialog).getByRole('button', { name: 'View Waiver PDF' }),
+    ).toBeEnabled()
+    expect(
+      within(dialog).queryByRole('button', { name: /sign/i }),
+    ).not.toBeInTheDocument()
+  })
+  it('keeps service transaction details usable when its waiver is unavailable', async () => {
+    vi.mocked(service.getHistory).mockResolvedValue({
+      rows: [
+        {
+          id: 'transaction-1',
+          reference_code: 'TXN-260905-000001',
+          status: 'completed',
+          created_at: client.created_at,
+          transaction_items: [
+            { item_name_snapshot: 'Helix Piercing', item_type: 'service' },
+          ],
+        },
+      ],
+      count: 1,
+    })
+    vi.mocked(service.getTransaction).mockResolvedValue({
+      id: 'transaction-1',
+      reference_code: 'TXN-260905-000001',
+      status: 'completed',
+      created_at: client.created_at,
+      transaction_items: [
+        {
+          id: 'item-1',
+          item_name_snapshot: 'Helix Piercing',
+          item_type: 'service',
+          quantity: 1,
+          unit_price_snapshot: 700,
+        },
+      ],
+      payments: [],
+    })
+    vi.mocked(service.getTransactionWaiver).mockRejectedValue(
+      new Error('Could not load this transaction’s waiver.'),
+    )
+    harness()
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Open Ana Cruz details' }),
+    )
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'TXN-260905-000001' }),
+    )
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Transaction details',
+    })
+    expect(
+      await within(dialog).findByText('Waiver record unavailable.'),
+    ).toBeVisible()
+    expect(within(dialog).getByText('Helix Piercing')).toBeVisible()
+    expect(
+      within(dialog).queryByRole('button', { name: /waiver/i }),
+    ).not.toBeInTheDocument()
   })
   it('handles Escape and restores focus to the opener', async () => {
     harness()

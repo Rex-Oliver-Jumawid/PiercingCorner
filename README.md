@@ -14,7 +14,8 @@ routes use the approved Owner `/overview` and Staff `/dashboard` landing rules.
 Auth events synchronize application accounts while logout and genuine identity
 changes clear identity-sensitive TanStack Query state. The Clients feature now
 provides server-paginated search, client registration/editing with non-blocking
-duplicate warnings, and read-only transaction/payment history for both roles.
+duplicate warnings, and read-only transaction/payment history for both roles,
+including historical signed-waiver PDF access for service transactions.
 The Owner-only Studio page now provides the service and product catalogs used by
 future transaction workflows, including search, create, edit, pricing, optional
 descriptions, and reversible active/inactive status management.

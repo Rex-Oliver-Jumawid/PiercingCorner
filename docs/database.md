@@ -225,6 +225,11 @@ traffic. Each is `security definer`, uses an empty `search_path`, and independen
 requires `is_owner()`. Sales never passes date filters; Reports passes inclusive
 Manila dates to the shared completed-sales projection.
 
+`get_owner_overview()` also returns the number of configured Studio days and
+the number currently marked open. The frontend treats all seven persisted days
+with at least one open day as ready, distinguishes an intentionally all-closed
+week, and flags a schedule with missing day records as incomplete.
+
 Revenue is recorded payments belonging to completed transactions minus their
 refund and void adjustments.
 Transaction totals remain derived from immutable item snapshots. Report exports
