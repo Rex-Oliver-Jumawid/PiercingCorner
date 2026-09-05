@@ -65,6 +65,11 @@ values
   ('00000000-0000-0000-0000-000000000301', 2, 'Template version two', '00000000-0000-0000-0000-000000000001'),
   ('00000000-0000-0000-0000-000000000302', 3, 'Template version three', '00000000-0000-0000-0000-000000000001');
 
+select pg_temp.assert_true(
+  has_table_privilege('authenticated', 'public.staff_accounts', 'select'),
+  'authenticated must have SELECT privilege before staff-account RLS can run'
+);
+
 set local role authenticated;
 select set_config('request.jwt.claim.role', 'authenticated', true);
 

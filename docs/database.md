@@ -91,7 +91,9 @@ Every application table enables RLS. Security-definer helper functions only
 answer active-account, owner, open-transaction, and current-template questions;
 they pin `search_path` and schema-qualify reads. Inactive accounts fail the
 active-account test and receive no normal application access. `staff_accounts`
-has no normal INSERT/UPDATE/DELETE policy, so a Staff member cannot promote
+explicitly grants `SELECT` to the authenticated PostgREST role so account
+resolution can reach its RLS policies. It has no normal INSERT/UPDATE/DELETE
+policy, so a Staff member cannot promote
 themselves or anyone else. Future account management requires a reviewed
 server-side/Admin API boundary.
 
