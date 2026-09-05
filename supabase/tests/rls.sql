@@ -69,7 +69,8 @@ do $$
 declare
   account_count integer;
 begin
-  select count(*) into account_count from public.staff_accounts;
+  select count(*) into account_count from public.staff_accounts
+  where id in ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000003');
   perform pg_temp.assert_true(account_count = 3, 'active Owner must read staff-account metadata');
 end;
 $$;
@@ -105,8 +106,10 @@ declare
   product_count integer;
   changed_count integer;
 begin
-  select count(*) into service_count from public.services;
-  select count(*) into product_count from public.products;
+  select count(*) into service_count from public.services
+  where id in ('00000000-0000-0000-0000-000000000101', '00000000-0000-0000-0000-000000000102');
+  select count(*) into product_count from public.products
+  where id in ('00000000-0000-0000-0000-000000000201', '00000000-0000-0000-0000-000000000202');
   perform pg_temp.assert_true(service_count = 1, 'Staff must read only active services');
   perform pg_temp.assert_true(product_count = 1, 'Staff must read only active products');
 

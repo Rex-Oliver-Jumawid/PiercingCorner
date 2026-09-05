@@ -7,6 +7,31 @@ export type Json =
   | Json[]
 
 export type Database = {
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       clients: {
@@ -273,6 +298,13 @@ export type Database = {
             foreignKeyName: "transactions_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
+            referencedRelation: "client_summaries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
@@ -377,16 +409,136 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      client_summaries: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          email: string | null
+          full_name: string | null
+          id: string | null
+          last_activity: string | null
+          phone: string | null
+          transaction_count: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string | null
+          last_activity?: never
+          phone?: string | null
+          transaction_count?: never
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string | null
+          last_activity?: never
+          phone?: string | null
+          transaction_count?: never
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clients_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "staff_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       current_waiver_template_id: { Args: never; Returns: string }
+      finalize_transaction: {
+        Args: {
+          payment_reference: string
+          selected_payment_method: Database["public"]["Enums"]["payment_method"]
+          selected_product_ids: string[]
+          selected_service_ids: string[]
+          target_transaction_id: string
+        }
+        Returns: {
+          id: string
+          reference_code: string
+        }[]
+      }
+      find_client_duplicates: {
+        Args: {
+          candidate_email?: string
+          candidate_name: string
+          candidate_phone?: string
+          exclude_client_id?: string
+        }
+        Returns: {
+          email: string
+          full_name: string
+          id: string
+          phone: string
+        }[]
+      }
       is_active_account: { Args: never; Returns: boolean }
       is_open_transaction: {
         Args: { target_transaction_id: string }
         Returns: boolean
       }
       is_owner: { Args: never; Returns: boolean }
+      next_transaction_reference: { Args: never; Returns: string }
+      record_product_sale: {
+        Args: {
+          client_details: Json
+          payment_reference: string
+          selected_payment_method: Database["public"]["Enums"]["payment_method"]
+          selected_product_ids: string[]
+        }
+        Returns: {
+          id: string
+          reference_code: string
+        }[]
+      }
+      search_clients: {
+        Args: { search_text?: string }
+        Returns: {
+          created_at: string | null
+          created_by: string | null
+          email: string | null
+          full_name: string | null
+          id: string | null
+          last_activity: string | null
+          phone: string | null
+          transaction_count: number | null
+          updated_at: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "client_summaries"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      search_dashboard_transactions: {
+        Args: { search_text?: string }
+        Returns: {
+          client_id: string
+          client_name: string
+          created_at: string
+          has_waiver: boolean
+          id: string
+          items: Json
+          payment_count: number
+          recorded_by_name: string
+          reference_code: string
+          status: Database["public"]["Enums"]["transaction_status"]
+          total: number
+          updated_at: string
+        }[]
+      }
     }
     Enums: {
       account_status: "active" | "inactive"
@@ -525,6 +677,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       account_status: ["active", "inactive"],

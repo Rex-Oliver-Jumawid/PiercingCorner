@@ -4,7 +4,7 @@ PiercingCorner is a management system for a piercing studio in Parañaque.
 
 ## Current implementation status
 
-**Phase 1A — COMPLETE (implementation); live Supabase walkthrough pending**
+**Phase 4 — COMPLETE**
 
 Implemented: the Phase 0A frontend scaffold, migration-driven PostgreSQL schema,
 generated Supabase database types, Row Level Security policies, email/password
@@ -12,11 +12,23 @@ staff Login, active-account resolution, authenticated session restoration, and
 Owner/Staff route guards for the closed access model. Root, Login, and unknown
 routes use the approved Owner `/overview` and Staff `/dashboard` landing rules.
 Auth events synchronize application accounts while logout and genuine identity
-changes clear identity-sensitive TanStack Query state.
+changes clear identity-sensitive TanStack Query state. The Clients feature now
+provides server-paginated search, client registration/editing with non-blocking
+duplicate warnings, and read-only transaction/payment history for both roles.
+The Owner-only Studio page now provides the service and product catalogs used by
+future transaction workflows, including search, create, edit, pricing, optional
+descriptions, and reversible active/inactive status management.
+The Owner/Staff Dashboard now lists and searches today's Manila transactions,
+supports open-status operations, and provides a Zustand-driven Record Sale flow.
+Product-only sales and eligible existing-transaction finalization use atomic
+database functions with server-derived snapshots, totals, payment facts, and
+completion. New service sales stop without a database write at the Phase 5
+waiver handoff.
 
-Deliberately not implemented: Google OAuth, public booking, client/catalog CRUD,
-transaction workflow/finalization RPC, signatures/PDFs, Storage uploads,
-dashboard metrics, reports, and the final application-shell design.
+Deliberately not implemented: Google OAuth, public booking, signature capture,
+PDFs, Storage uploads, dashboard metrics,
+reports and the remaining Studio scheduling model. The authenticated shell now
+uses the approved responsive application design.
 
 ## Stack
 
@@ -76,9 +88,22 @@ Regenerate public-schema TypeScript types after a migration change:
 supabase gen types typescript --local
 ```
 
+To seed local test identities and starter fixtures for UI walkthroughs:
+
+```bash
+npm run db:seed
+```
+
+Seeded test accounts:
+- Owner: `owner@piercingcorner.test` (password: `password123`)
+- Staff: `staff@piercingcorner.test` (password: `password123`)
+- Inactive: `inactive@piercingcorner.test` (password: `password123`)
+
 See [the database contract](docs/database.md) for the schema, RLS matrix, and
-deferred workflow hardening. See [Phase 1A](docs/phase-1a.md) for the Login and
-route-authorization acceptance checklist.
+transaction boundaries. See [Phase 1A](docs/phase-1a.md) for the Login and
+route-authorization acceptance checklist, [Phase 2](docs/phase-2.md) for the
+Clients contract, [Phase 3](docs/phase-3.md) for catalog management, and
+[Phase 4](docs/phase-4.md) for the Dashboard transaction workflow.
 
 ## Architecture
 
@@ -86,7 +111,8 @@ route-authorization acceptance checklist.
 - `src/features`: feature-local pages, components, hooks, and types. Current
   placeholders establish the future Dashboard, Clients, Sales, Reports, Studio,
   Settings, and Auth boundaries.
-- `src/components`: shared presentation primitives and the temporary app shell.
+- `src/components`: shared presentation primitives and the responsive authenticated
+  application shell.
 - `src/lib`: shared infrastructure, currently the Query client and Supabase
   browser-client boundary.
 - `supabase/migrations`: canonical Phase 0B schema and RLS migrations.
@@ -98,5 +124,5 @@ access role; it will be modeled separately as a studio/service qualification.
 
 ## Next
 
-Run the pending Phase 1A Owner/Staff/inactive-account walkthrough when safe local
-Supabase test identities are available. Phase 1B has not been started.
+Phase 5 will connect service-containing Record Sale drafts to signature capture,
+versioned consent, private signature/PDF storage, and transaction continuation.

@@ -89,8 +89,8 @@ server-side/Admin API boundary.
 
 Transactions use `pending`, `ongoing`, `completed`, and `cancelled`. Pending and
 ongoing are open operational states. Normal roles can create an open record and
-cancel it, but cannot directly set `completed`; a later atomic finalization RPC
-will record payments and transition status. Completed and cancelled records are
+cancel it, but cannot directly set `completed`; the Phase 4 atomic transaction
+functions record payment and transition status. Completed and cancelled records are
 not normally editable. There is no appointment status, appointment relationship,
 or Draft Sale entity.
 
@@ -104,6 +104,42 @@ card, GCash, Maya, or banking credentials are stored. Multiple payments are
 allowed. Refunds and voids remain deferred and must append adjustments rather
 than rewrite original payment rows.
 
+## Phase 4 transaction interfaces
+
+`search_dashboard_transactions(text)` returns the current Manila calendar day's
+transaction projection for an active application account. It includes client and
+recorder display names, immutable item snapshots, a derived total, waiver presence,
+and payment count. Search treats all input as literal text.
+
+`record_product_sale(jsonb, uuid[], payment_method, text)` is the only Phase 4
+new-sale commit path. It accepts either an existing client ID or new walk-in details,
+requires unique active products, obtains names and prices from the database, creates
+the client when needed, writes the transaction and item snapshots, derives the exact
+total, records one full payment, and marks the transaction completed in one database
+transaction.
+
+`finalize_transaction(uuid, uuid[], uuid[], payment_method, text)` locks an existing
+open transaction, retains selected historical snapshots even after catalog changes,
+adds only active catalog rows, removes deselected rows, derives the total, records one
+full payment, and completes atomically. It rejects a service selection without an
+existing signed waiver and rejects transactions with existing payments.
+
+These security-definer functions require an active application account, pin an empty
+`search_path`, schema-qualify access, and grant execution only to `authenticated`.
+They do not expose administrative credentials to the browser. Phase 4 deliberately
+supports one full payment; the table's broader multiple-payment domain remains for a
+later reviewed workflow.
+
+## Phase 2 client read interfaces
+
+`client_summaries` is a security-invoker view over clients and their transaction
+counts/latest activity. `search_clients(text)` performs literal substring search
+without constructing PostgREST filter expressions from user input.
+`find_client_duplicates(text, text, text, uuid)` checks exact normalized name,
+email, and phone matches while optionally excluding an edited client. These
+interfaces execute with the caller's permissions, so existing Clients and
+Transactions RLS continues to govern every row.
+
 ## Waivers and deferred work
 
 `waiver_templates.version` is unique and append-only. The highest version is
@@ -112,8 +148,9 @@ Signed waivers retain their template FK, client-name snapshot, and required
 future private signature/PDF paths. RLS gives neither role UPDATE or DELETE on
 signed waivers; it similarly prevents ordinary rewrites of payments/templates.
 
-The future transaction RPC will atomically coordinate transaction items,
-service-waiver requirements, payment records, and completion. Product-only
-transactions have no inherent waiver requirement, and the schema adds no
-`awaiting_waiver` status. Storage setup, PDFs, Studio profiles, financial
-adjustments, and secure account management are intentionally deferred.
+The Phase 4 finalization function coordinates transaction items, service-waiver
+requirements, payment records, and completion. Product-only transactions have no
+inherent waiver requirement, and the schema adds no `awaiting_waiver` status. New
+service sales pause in memory before any database write until Phase 5 provides
+signature capture. Storage setup, PDFs, Studio profiles, financial adjustments,
+and secure account management are intentionally deferred.

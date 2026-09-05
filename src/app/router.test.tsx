@@ -1,11 +1,16 @@
 import { render, waitFor } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import type { InitialEntry } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
 
 import { AuthContext } from '../features/auth/authContext'
 import type { AppRole, StaffAccount } from '../features/auth/types'
 import { appRoutes } from './router'
+
+vi.mock('../features/clients/clientService', () => ({
+  listClients: vi.fn().mockResolvedValue({ rows: [], count: 0 }),
+}))
 
 function makeAccount(role: AppRole): StaffAccount {
   return {
@@ -18,7 +23,9 @@ function makeAccount(role: AppRole): StaffAccount {
 
 function renderRoute(initialEntry: InitialEntry, role?: AppRole) {
   const account = role ? makeAccount(role) : null
-  const router = createMemoryRouter(appRoutes, { initialEntries: [initialEntry] })
+  const router = createMemoryRouter(appRoutes, {
+    initialEntries: [initialEntry],
+  })
 
   render(
     <AuthContext.Provider
@@ -29,37 +36,60 @@ function renderRoute(initialEntry: InitialEntry, role?: AppRole) {
         signOut: vi.fn(),
       }}
     >
-      <RouterProvider router={router} />
+      <QueryClientProvider
+        client={
+          new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        }
+      >
+        <RouterProvider router={router} />
+      </QueryClientProvider>
     </AuthContext.Provider>,
   )
 
   return router
 }
 
-async function expectPath(initialEntry: InitialEntry, expectedPath: string, role?: AppRole) {
+async function expectPath(
+  initialEntry: InitialEntry,
+  expectedPath: string,
+  role?: AppRole,
+) {
   const router = renderRoute(initialEntry, role)
   await waitFor(() => expect(router.state.location.pathname).toBe(expectedPath))
 }
 
 describe('protected application routing', () => {
-  it.each(['/dashboard', '/sales'])('sends unauthenticated %s requests to Login', async (path) => {
-    await expectPath(path, '/login')
-  })
-
-  it.each(['/dashboard', '/clients'])('allows Staff to enter %s', async (path) => {
-    await expectPath(path, path, 'staff')
-  })
-
-  it.each(['/overview', '/sales', '/reports', '/studio', '/settings', '/calendar'])(
-    'redirects Staff away from %s',
+  it.each(['/dashboard', '/sales'])(
+    'sends unauthenticated %s requests to Login',
     async (path) => {
-      await expectPath(path, '/dashboard', 'staff')
+      await expectPath(path, '/login')
     },
   )
 
-  it.each(['/overview', '/sales', '/settings'])('allows Owner to enter %s', async (path) => {
-    await expectPath(path, path, 'owner')
+  it.each(['/dashboard', '/clients'])(
+    'allows Staff to enter %s',
+    async (path) => {
+      await expectPath(path, path, 'staff')
+    },
+  )
+
+  it.each([
+    '/overview',
+    '/sales',
+    '/reports',
+    '/studio',
+    '/settings',
+    '/calendar',
+  ])('redirects Staff away from %s', async (path) => {
+    await expectPath(path, '/dashboard', 'staff')
   })
+
+  it.each(['/overview', '/sales', '/settings'])(
+    'allows Owner to enter %s',
+    async (path) => {
+      await expectPath(path, path, 'owner')
+    },
+  )
 
   it('routes authenticated Owner at root to Overview', async () => {
     await expectPath('/', '/overview', 'owner')
@@ -84,8 +114,20 @@ describe('protected application routing', () => {
   })
 
   it('honors only authorized remembered destinations from Login', async () => {
-    await expectPath({ pathname: '/login', state: { from: '/reports' } }, '/reports', 'owner')
-    await expectPath({ pathname: '/login', state: { from: '/clients' } }, '/clients', 'staff')
-    await expectPath({ pathname: '/login', state: { from: '/reports' } }, '/dashboard', 'staff')
+    await expectPath(
+      { pathname: '/login', state: { from: '/reports' } },
+      '/reports',
+      'owner',
+    )
+    await expectPath(
+      { pathname: '/login', state: { from: '/clients' } },
+      '/clients',
+      'staff',
+    )
+    await expectPath(
+      { pathname: '/login', state: { from: '/reports' } },
+      '/dashboard',
+      'staff',
+    )
   })
 })

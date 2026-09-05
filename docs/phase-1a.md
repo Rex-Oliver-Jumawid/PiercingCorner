@@ -1,6 +1,6 @@
 # Phase 1A — Authentication and route authorization
 
-**Status: implementation complete; live Supabase Owner/Staff walkthrough pending.**
+**Status: complete.**
 
 Phase 1A connects the approved staff Login to Supabase Auth and requires a
 matching active `staff_accounts` record before the application is entered.
@@ -70,10 +70,11 @@ npm test
 git diff --check
 ```
 
-The live Supabase walkthrough was not executed because this workspace has no
-`.env`, configured Supabase credentials, or supplied local test identities. No
-success was simulated. The existing Phase 0B migrations and RLS tests were not
-changed, so a schema reset was not required for this frontend-only pass.
+The local Supabase Owner, Staff, and inactive-account walkthroughs were completed
+during Phase 2 after local credentials and test identities became available.
+Owner and Staff reached their authorized routes and logout returned to Login;
+the inactive identity remained on Login with the safe unavailable/inactive
+message.
 
 ## Final acceptance checklist
 
@@ -135,10 +136,9 @@ changed, so a schema reset was not required for this frontend-only pass.
 
 ### Live Supabase walkthrough
 
-- [ ] Live active Owner Login/navigation/logout walkthrough performed.
-- [ ] Live active Staff Login/access-denial/logout walkthrough performed.
-- [ ] Live unusable/inactive application-account denial walkthrough performed.
+- [x] Live active Owner Login/navigation/logout walkthrough performed.
+- [x] Live active Staff Login/access-denial/logout walkthrough performed.
+- [x] Live unusable/inactive application-account denial walkthrough performed.
 
-These live items remain pending only because local credentials/test identities
-were unavailable. They do not replace the automated Phase 1A authorization and
+These local walkthroughs complement the automated Phase 1A authorization and
 auth-lifecycle coverage above.
