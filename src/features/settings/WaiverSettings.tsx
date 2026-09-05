@@ -6,7 +6,7 @@ import type { WaiverTemplate } from './settingsService'
 
 export function WaiverSettings({ template }: { template: WaiverTemplate }) {
   const [dialog, setDialog] = useState<'preview' | 'edit' | null>(null)
-  return <section className="settings-panel" aria-labelledby="waiver-settings-title">
+  return <section id="waiver-settings" tabIndex={-1} className="settings-panel" aria-labelledby="waiver-settings-title">
     <header className="settings-panel-head"><div><h3 id="waiver-settings-title">Waiver &amp; Consent</h3><p>Configure the consent shown before a service transaction enters Pending.</p></div><div className="settings-actions"><button className={dashButton({ variant: 'secondary' })} type="button" onClick={() => setDialog('preview')}>Preview</button><button className={dashButton({ variant: 'primary' })} type="button" onClick={() => setDialog('edit')}>Edit template</button></div></header>
     <div className="settings-panel-body waiver-settings-layout">
       <div className="waiver-meta">

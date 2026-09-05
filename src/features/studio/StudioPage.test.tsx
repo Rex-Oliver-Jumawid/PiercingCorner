@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReactNode } from 'react'
+import { MemoryRouter } from 'react-router-dom'
 import { AuthContext } from '../auth/authContext'
 import type { AppRole } from '../auth/types'
 import { StudioPage } from './StudioPage'
@@ -67,7 +68,7 @@ beforeEach(() => {
   vi.mocked(studioService.deleteStudioException).mockResolvedValue()
 })
 
-function harness(role: AppRole = 'owner', content: ReactNode = <StudioPage />) {
+function harness(role: AppRole = 'owner', content: ReactNode = <StudioPage />, initialEntry = '/studio') {
   const cache = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
@@ -81,7 +82,7 @@ function harness(role: AppRole = 'owner', content: ReactNode = <StudioPage />) {
           signOut: vi.fn(),
         }}
       >
-        {content}
+        <MemoryRouter initialEntries={[initialEntry]}>{content}</MemoryRouter>
       </AuthContext.Provider>
     </QueryClientProvider>,
   )
@@ -171,6 +172,16 @@ describe('Studio catalog workflow', () => {
     expect(screen.getAllByText('Ana Santos').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Station 1').length).toBeGreaterThan(0)
     expect(screen.getAllByText('10:00 AM — 6:00 PM').length).toBeGreaterThan(0)
+  })
+
+  it('focuses a linked catalog section after asynchronous configuration loads', async () => {
+    const scrollIntoView = vi.fn()
+    HTMLElement.prototype.scrollIntoView = scrollIntoView
+    harness('owner', <StudioPage />, '/studio#service-catalog')
+
+    await screen.findByRole('heading', { name: 'Services & pricing' })
+    await waitFor(() => expect(document.getElementById('service-catalog')).toHaveFocus())
+    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' })
   })
 
   it('saves a Studio Hours edit through the scheduling boundary', async () => {

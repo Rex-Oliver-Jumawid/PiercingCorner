@@ -5,11 +5,13 @@ import { featureView } from '../../components/ui/dashboard-styles'
 import { StudioConfigurationView } from './StudioConfiguration'
 import type { StudioEditor } from './StudioConfiguration'
 import { useStudioConfiguration } from './studioQueries'
+import { useHashSectionNavigation } from '../../lib/navigation/useHashSectionNavigation'
 import './studio.css'
 
 function StudioWorkspace() {
   const [editor, setEditor] = useState<StudioEditor | null>(null)
   const configuration = useStudioConfiguration()
+  useHashSectionNavigation(Boolean(configuration.data))
 
   return (
     <section className={`studio-page ${featureView}`}>

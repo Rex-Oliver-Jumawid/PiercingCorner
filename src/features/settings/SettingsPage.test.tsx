@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { MemoryRouter } from 'react-router-dom'
 import { AuthContext } from '../auth/authContext'
 import { SettingsPage } from './SettingsPage'
 import * as settingsService from './settingsService'
@@ -28,7 +29,7 @@ beforeEach(() => {
 })
 
 function renderPage(role: 'owner' | 'staff' = 'owner') {
-  return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><AuthContext.Provider value={{ account: { id: 'account-1', display_name: 'Owner', role, status: 'active' }, status: 'authenticated', signIn: vi.fn(), signOut: vi.fn() }}><SettingsPage /></AuthContext.Provider></QueryClientProvider>)
+  return render(<MemoryRouter><QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><AuthContext.Provider value={{ account: { id: 'account-1', display_name: 'Owner', role, status: 'active' }, status: 'authenticated', signIn: vi.fn(), signOut: vi.fn() }}><SettingsPage /></AuthContext.Provider></QueryClientProvider></MemoryRouter>)
 }
 
 describe('Settings station administration', () => {

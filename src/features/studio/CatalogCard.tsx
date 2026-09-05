@@ -27,7 +27,7 @@ export function CatalogCard({
   }, [query.data, search])
 
   return (
-    <article className="catalog-card">
+    <article id={`${kind}-catalog`} tabIndex={-1} className="catalog-card">
       <header className="catalog-card-head">
         <div>
           <h3>{title}</h3>

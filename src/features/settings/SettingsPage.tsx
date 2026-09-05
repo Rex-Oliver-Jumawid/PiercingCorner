@@ -7,6 +7,7 @@ import { useSettingsOverview } from './settingsQueries'
 import { useStations } from './stationQueries'
 import type { Station } from './stationService'
 import { WaiverSettings } from './WaiverSettings'
+import { useHashSectionNavigation } from '../../lib/navigation/useHashSectionNavigation'
 import './settings.css'
 
 export function SettingsPage() {
@@ -19,6 +20,7 @@ function SettingsWorkspace() {
   const overview = useSettingsOverview()
   const stations = useStations()
   const [stationEditor, setStationEditor] = useState<Station | 'new' | null>(null)
+  useHashSectionNavigation(Boolean(overview.data))
 
   return <section className={`settings-page ${featureView}`}>
     <div className="settings-intro"><div><p className="settings-eyebrow">OWNER SETTINGS</p><h2>System configuration</h2><p>Manage business details, waiver rules, access visibility, and physical stations. Studio scheduling and catalogs remain under Studio.</p></div><span className="settings-owner-pill">◆ Owner only</span></div>
