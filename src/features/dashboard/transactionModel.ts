@@ -50,6 +50,37 @@ export interface PaymentDraft {
   reference: string
 }
 
+export interface WaiverPreparation {
+  event_id: string
+  transaction_id: string | null
+  template_id: string
+  template_version: number
+  template_body: string
+  client_name: string | null
+  expires_at: string
+}
+
+export interface AcceptedWaiverSigning {
+  id: string
+  reference_code: string
+  client_name: string
+  created_at: string
+  total: number
+  event_id: string
+  template_id: string
+  template_version: number
+  template_body: string
+  signed_at: string
+}
+
+export interface TransactionWaiver {
+  id: string
+  signature_storage_path: string
+  pdf_storage_path: string
+  signed_at: string
+  template_version: number
+}
+
 export function parseTransactionItems(value: Json): TransactionItem[] {
   if (!Array.isArray(value)) throw new Error('Unable to read transaction items.')
   return value.map((item) => {

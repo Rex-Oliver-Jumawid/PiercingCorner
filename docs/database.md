@@ -36,7 +36,7 @@ it leaves no sample accounts or business records in the local database.
 | `transaction_items` | Service/product lines with name and price snapshots. |
 | `payments` | Recorded payment facts; never gateway credentials. |
 | `waiver_templates` | Append-only numbered consent-template versions. |
-| `waivers` | One signed consent record per transaction and future private Storage paths. |
+| `waivers` | One immutable signed consent record per transaction with private Storage paths. |
 
 `transactions` belongs to a client and the account that recorded it.
 `transaction_items` references exactly one catalog row: service or product, never
@@ -72,7 +72,7 @@ Calendar, or Overview pages.
 | Transaction items | Read; add/edit/remove on open transactions | Same, through Dashboard only |
 | Payments | Read/record on open transactions | Read/record through Dashboard |
 | Waiver templates | Read/create version | Read current version only |
-| Signed waivers | Read/create on open transactions | Read/create through Dashboard |
+| Signed waivers | Read; create only through checked signing RPC | Same, through Dashboard |
 | Payment update/delete | Denied | Denied |
 | Waiver-template update/delete | Denied | Denied |
 | Signed-waiver update/delete | Denied | Denied |
@@ -140,17 +140,36 @@ email, and phone matches while optionally excluding an edited client. These
 interfaces execute with the caller's permissions, so existing Clients and
 Transactions RLS continues to govern every row.
 
-## Waivers and deferred work
+## Phase 5 waiver signing and private documents
 
-`waiver_templates.version` is unique and append-only. The highest version is
-current; new wording creates a new row. Staff can read only that current version.
-Signed waivers retain their template FK, client-name snapshot, and required
-future private signature/PDF paths. RLS gives neither role UPDATE or DELETE on
-signed waivers; it similarly prevents ordinary rewrites of payments/templates.
+`waiver_templates.version` is unique and append-only. Version 1 contains the
+approved v5 wording and is system-provisioned; new wording creates a new row.
+Staff can read only the current version through ordinary table access.
 
-The Phase 4 finalization function coordinates transaction items, service-waiver
-requirements, payment records, and completion. Product-only transactions have no
-inherent waiver requirement, and the schema adds no `awaiting_waiver` status. New
-service sales pause in memory before any database write until Phase 5 provides
-signature capture. Storage setup, PDFs, Studio profiles, financial adjustments,
-and secure account management are intentionally deferred.
+`private.waiver_signing_events` is accessible only through narrow
+security-definer functions. A prepared event pins the exact template presented
+to the client and expires after a fixed 30 minutes. Acceptance creates or binds
+the Pending transaction and stamps `signed_at` with PostgreSQL
+`clock_timestamp()`. Accepted events never expire and do not change when a newer
+template becomes current.
+
+`prepare_waiver_signing`, `accept_new_service_waiver`, and
+`accept_existing_transaction_waiver` establish those states. Browser-generated
+documents are uploaded under deterministic transaction/event paths in the
+private `waiver-documents` bucket. `finalize_signed_waiver` verifies object
+existence, MIME type, uploader and path before creating the immutable waiver.
+Direct ordinary waiver inserts are denied. `get_recoverable_waiver_signing`
+allows the original recorder to resume an accepted event when its PNG exists.
+
+All active accounts can read finalized waiver artifacts. Updates are denied;
+referenced PNG/PDF objects cannot be deleted while uploaders can clean their own
+unreferenced artifacts. Signed waivers retain the pinned template, client-name
+snapshot, server signing time and private paths permanently.
+
+The Phase 4 finalization function continues to coordinate transaction items,
+service-waiver requirements, payment records, and completion. The Phase 5 happy
+path opens payment immediately after waiver persistence, while interrupted work
+remains Pending for Dashboard recovery. Product-only transactions have no waiver
+requirement and the schema adds no `awaiting_waiver` status. Studio profiles,
+financial adjustments, legal template administration, and secure account
+management remain deferred.

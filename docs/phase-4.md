@@ -51,10 +51,9 @@ authenticated role. RLS continues to protect ordinary table access.
 Readable references use `TXN-YYMMDD-NNNNNN`. The sequence is server-controlled;
 the date is evaluated in `Asia/Manila`.
 
-## Deferred Phase 5 boundary
+## Phase 5 continuation
 
-Phase 4 can finalize a service transaction only when a signed waiver already
-exists. Capturing a signature, creating the initial service transaction, storing
-private signature/PDF artifacts, and continuing the in-session service draft are
-Phase 5 work. No `awaiting_waiver` status or browser-only fake transaction is
-introduced.
+Phase 5 now advances service drafts through pinned consent, signature capture,
+private signature/PDF persistence, and the existing full-payment finalization
+boundary. Pending remains the recoverable transaction state; no
+`awaiting_waiver` status or browser-only fake transaction was introduced.

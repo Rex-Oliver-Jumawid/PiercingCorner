@@ -321,21 +321,21 @@ export type Database = {
         Row: {
           body: string
           created_at: string
-          created_by: string
+          created_by: string | null
           id: string
           version: number
         }
         Insert: {
           body: string
           created_at?: string
-          created_by?: string
+          created_by?: string | null
           id?: string
           version: number
         }
         Update: {
           body?: string
           created_at?: string
-          created_by?: string
+          created_by?: string | null
           id?: string
           version?: number
         }
@@ -455,7 +455,58 @@ export type Database = {
       }
     }
     Functions: {
+      abandon_waiver_signing: {
+        Args: { signing_event_id: string }
+        Returns: undefined
+      }
+      accept_existing_transaction_waiver: {
+        Args: { signing_event_id: string }
+        Returns: {
+          client_name: string
+          created_at: string
+          event_id: string
+          id: string
+          reference_code: string
+          signed_at: string
+          template_body: string
+          template_id: string
+          template_version: number
+          total: number
+        }[]
+      }
+      accept_new_service_waiver: {
+        Args: {
+          client_details: Json
+          selected_product_ids: string[]
+          selected_service_ids: string[]
+          signing_event_id: string
+        }
+        Returns: {
+          client_name: string
+          created_at: string
+          event_id: string
+          id: string
+          reference_code: string
+          signed_at: string
+          template_body: string
+          template_id: string
+          template_version: number
+          total: number
+        }[]
+      }
       current_waiver_template_id: { Args: never; Returns: string }
+      finalize_signed_waiver: {
+        Args: {
+          pdf_storage_path: string
+          signature_storage_path: string
+          signing_event_id: string
+        }
+        Returns: {
+          id: string
+          signed_at: string
+          transaction_id: string
+        }[]
+      }
       finalize_transaction: {
         Args: {
           payment_reference: string
@@ -483,6 +534,31 @@ export type Database = {
           phone: string
         }[]
       }
+      get_recoverable_waiver_signing: {
+        Args: { target_transaction_id: string }
+        Returns: {
+          client_name: string
+          created_at: string
+          event_id: string
+          id: string
+          reference_code: string
+          signed_at: string
+          template_body: string
+          template_id: string
+          template_version: number
+          total: number
+        }[]
+      }
+      get_transaction_waiver: {
+        Args: { target_transaction_id: string }
+        Returns: {
+          id: string
+          pdf_storage_path: string
+          signature_storage_path: string
+          signed_at: string
+          template_version: number
+        }[]
+      }
       is_active_account: { Args: never; Returns: boolean }
       is_open_transaction: {
         Args: { target_transaction_id: string }
@@ -490,6 +566,18 @@ export type Database = {
       }
       is_owner: { Args: never; Returns: boolean }
       next_transaction_reference: { Args: never; Returns: string }
+      prepare_waiver_signing: {
+        Args: { target_transaction_id?: string }
+        Returns: {
+          client_name: string
+          event_id: string
+          expires_at: string
+          template_body: string
+          template_id: string
+          template_version: number
+          transaction_id: string
+        }[]
+      }
       record_product_sale: {
         Args: {
           client_details: Json

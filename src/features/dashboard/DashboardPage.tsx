@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { RecordSaleDialog } from './RecordSaleDialog'
+import { ExistingWaiverDialog } from './ExistingWaiverDialog'
 import { useSaleStore } from './saleStore'
 import { FinalizeDialog, TransactionDialog } from './TransactionDialog'
 import { useTransactions } from './transactionQueries'
 import { formatManilaTime, formatMoney } from './transactionModel'
+import type { AcceptedWaiverSigning, DashboardTransaction, WaiverPreparation } from './transactionModel'
 import './dashboard.css'
 
 function DashboardWorkspace() {
@@ -12,6 +14,13 @@ function DashboardWorkspace() {
   const [committedSearch, setCommittedSearch] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [finalizingId, setFinalizingId] = useState<string | null>(null)
+  const [directPayment, setDirectPayment] = useState(false)
+  const [signing, setSigning] = useState<{
+    transaction: DashboardTransaction
+    preparation: WaiverPreparation
+    recoveredSigning?: AcceptedWaiverSigning | null
+    recoveredSignature?: Blob | null
+  } | null>(null)
   const saleOpen = useSaleStore((state) => state.open)
   const startSale = useSaleStore((state) => state.start)
   const resetSale = useSaleStore((state) => state.reset)
@@ -109,19 +118,44 @@ function DashboardWorkspace() {
           onClose={() => setSelectedId(null)}
           onFinalize={() => {
             setSelectedId(null)
+            setDirectPayment(false)
             setFinalizingId(selected.id)
+          }}
+          onSignWaiver={(input) => {
+            setSelectedId(null)
+            setSigning({ transaction: selected, ...input })
+          }}
+        />
+      ) : null}
+      {signing ? (
+        <ExistingWaiverDialog
+          transaction={signing.transaction}
+          preparation={signing.preparation}
+          recoveredSigning={signing.recoveredSigning}
+          recoveredSignature={signing.recoveredSignature}
+          onBack={() => {
+            setSigning(null)
+            setSelectedId(signing.transaction.id)
+          }}
+          onPersisted={() => {
+            setSigning(null)
+            setDirectPayment(true)
+            setFinalizingId(signing.transaction.id)
           }}
         />
       ) : null}
       {finalizing ? (
         <FinalizeDialog
           transaction={finalizing}
+          initialStep={directPayment ? 'payment' : 'items'}
           onBack={() => {
             setFinalizingId(null)
+            setDirectPayment(false)
             setSelectedId(finalizing.id)
           }}
           onCompleted={() => {
             setFinalizingId(null)
+            setDirectPayment(false)
             setSelectedId(finalizing.id)
           }}
         />

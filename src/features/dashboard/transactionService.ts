@@ -8,7 +8,10 @@ import type {
   DashboardTransaction,
   NewClientDraft,
   PaymentDraft,
+  AcceptedWaiverSigning,
   TransactionStatus,
+  TransactionWaiver,
+  WaiverPreparation,
 } from './transactionModel'
 
 export async function listTransactions(search: string, signal: AbortSignal) {
@@ -110,6 +113,154 @@ export async function finalizeTransaction(input: {
     throw new Error('Could not finalize this transaction. Review it and try again.')
   }
   return data[0]
+}
+
+function clientDetails(
+  existingClient: ClientOption | null,
+  newClient: NewClientDraft,
+): Json {
+  return existingClient
+    ? { existing_client_id: existingClient.id }
+    : {
+        full_name: `${newClient.first_name.trim()} ${newClient.last_name.trim()}`,
+        email: newClient.email.trim() || null,
+        phone: newClient.phone.trim() || null,
+      }
+}
+
+export async function prepareWaiverSigning(
+  transactionId?: string,
+): Promise<WaiverPreparation> {
+  const { data, error } = await getSupabaseClient().rpc('prepare_waiver_signing', {
+    target_transaction_id: transactionId,
+  })
+  if (error || !data?.[0]) {
+    throw new Error('Could not prepare the waiver. Refresh and try again.')
+  }
+  return data[0]
+}
+
+export async function acceptNewServiceWaiver(input: {
+  eventId: string
+  existingClient: ClientOption | null
+  newClient: NewClientDraft
+  serviceIds: string[]
+  productIds: string[]
+}): Promise<AcceptedWaiverSigning> {
+  const { data, error } = await getSupabaseClient().rpc('accept_new_service_waiver', {
+    signing_event_id: input.eventId,
+    client_details: clientDetails(input.existingClient, input.newClient),
+    selected_service_ids: input.serviceIds,
+    selected_product_ids: input.productIds,
+  })
+  if (error || !data?.[0]) {
+    const expired = error?.message.toLocaleLowerCase('en-PH').includes('expired')
+    throw new Error(expired
+      ? 'This waiver session expired. Reload the current terms and ask the client to sign again.'
+      : 'Could not establish the signed transaction. Your draft has been kept.')
+  }
+  return data[0]
+}
+
+export async function acceptExistingTransactionWaiver(
+  eventId: string,
+): Promise<AcceptedWaiverSigning> {
+  const { data, error } = await getSupabaseClient().rpc('accept_existing_transaction_waiver', {
+    signing_event_id: eventId,
+  })
+  if (error || !data?.[0]) {
+    throw new Error('Could not establish the signing event. Reload the waiver and try again.')
+  }
+  return data[0]
+}
+
+export function waiverPaths(transactionId: string, eventId: string) {
+  const prefix = `transactions/${transactionId}/waivers/${eventId}`
+  return { signature: `${prefix}/signature.png`, pdf: `${prefix}/waiver.pdf` }
+}
+
+export async function uploadWaiverDocuments(input: {
+  transactionId: string
+  eventId: string
+  signature: Blob
+  pdf: Blob
+}) {
+  const paths = waiverPaths(input.transactionId, input.eventId)
+  const storage = getSupabaseClient().storage.from('waiver-documents')
+  const signatureUpload = await storage.upload(paths.signature, input.signature, {
+    contentType: 'image/png',
+    upsert: false,
+  })
+  if (signatureUpload.error && !/already exists|duplicate/i.test(signatureUpload.error.message)) {
+    throw new Error('Could not upload the signature. The Pending transaction can be resumed.')
+  }
+  const pdfUpload = await storage.upload(paths.pdf, input.pdf, {
+    contentType: 'application/pdf',
+    upsert: false,
+  })
+  if (pdfUpload.error && !/already exists|duplicate/i.test(pdfUpload.error.message)) {
+    throw new Error('Could not upload the waiver PDF. The Pending transaction can be resumed.')
+  }
+  return paths
+}
+
+export async function finalizeSignedWaiver(input: {
+  eventId: string
+  signaturePath: string
+  pdfPath: string
+}) {
+  const { data, error } = await getSupabaseClient().rpc('finalize_signed_waiver', {
+    signing_event_id: input.eventId,
+    signature_storage_path: input.signaturePath,
+    pdf_storage_path: input.pdfPath,
+  })
+  if (error || !data?.[0]) {
+    throw new Error('Could not finalize the waiver. The Pending transaction can be resumed.')
+  }
+  return data[0]
+}
+
+export async function abandonWaiverSigning(eventId: string) {
+  await getSupabaseClient().rpc('abandon_waiver_signing', { signing_event_id: eventId })
+}
+
+export async function getTransactionWaiver(
+  transactionId: string,
+  signal?: AbortSignal,
+): Promise<TransactionWaiver | null> {
+  let query = getSupabaseClient()
+    .rpc('get_transaction_waiver', { target_transaction_id: transactionId })
+  if (signal) query = query.abortSignal(signal)
+  const singleQuery = query.maybeSingle()
+  const { data, error } = await singleQuery
+  if (error) throw new Error('Could not load this transaction’s waiver.')
+  return data
+}
+
+export async function getRecoverableWaiverSigning(
+  transactionId: string,
+): Promise<AcceptedWaiverSigning | null> {
+  const { data, error } = await getSupabaseClient()
+    .rpc('get_recoverable_waiver_signing', { target_transaction_id: transactionId })
+    .maybeSingle()
+  if (error) throw new Error('Could not check the waiver recovery state.')
+  return data
+}
+
+export async function downloadSignaturePng(transactionId: string, eventId: string) {
+  const path = waiverPaths(transactionId, eventId).signature
+  const { data, error } = await getSupabaseClient().storage
+    .from('waiver-documents')
+    .download(path)
+  return error ? null : data
+}
+
+export async function downloadWaiverPdf(path: string) {
+  const { data, error } = await getSupabaseClient().storage
+    .from('waiver-documents')
+    .download(path)
+  if (error) throw new Error('Could not download the waiver PDF.')
+  return data
 }
 
 export type PaymentMethod = Database['public']['Enums']['payment_method']

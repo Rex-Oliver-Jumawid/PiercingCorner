@@ -1,11 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import {
   useActiveCatalog,
   useDashboardMutation,
 } from './transactionQueries'
 import {
+  downloadWaiverPdf,
+  downloadSignaturePng,
   finalizeTransaction,
+  getTransactionWaiver,
+  getRecoverableWaiverSigning,
+  prepareWaiverSigning,
   updateTransactionStatus,
 } from './transactionService'
 import {
@@ -18,6 +24,7 @@ import type {
   DashboardTransaction,
   PaymentDraft,
   TransactionStatus,
+  WaiverPreparation,
 } from './transactionModel'
 
 function useModal() {
@@ -34,10 +41,16 @@ export function TransactionDialog({
   transaction,
   onClose,
   onFinalize,
+  onSignWaiver,
 }: {
   transaction: DashboardTransaction
   onClose: () => void
   onFinalize: () => void
+  onSignWaiver: (input: {
+    preparation: WaiverPreparation
+    recoveredSigning?: Awaited<ReturnType<typeof getRecoverableWaiverSigning>>
+    recoveredSignature?: Blob | null
+  }) => void
 }) {
   const dialog = useModal()
   const mutation = useDashboardMutation(
@@ -47,6 +60,67 @@ export function TransactionDialog({
   )
   const open = transaction.status === 'pending' || transaction.status === 'ongoing'
   const hasServices = transaction.items.some((item) => item.item_type === 'service')
+  const [waiverActionError, setWaiverActionError] = useState<string | null>(null)
+  const [preparingWaiver, setPreparingWaiver] = useState(false)
+  const waiver = useQuery({
+    queryKey: ['dashboard', 'transaction-waiver', transaction.id],
+    enabled: transaction.has_waiver,
+    queryFn: ({ signal }) => getTransactionWaiver(transaction.id, signal),
+  })
+
+  async function signWaiver() {
+    setPreparingWaiver(true)
+    setWaiverActionError(null)
+    try {
+      const recoveredSigning = await getRecoverableWaiverSigning(transaction.id)
+      if (recoveredSigning) {
+        const recoveredSignature = await downloadSignaturePng(transaction.id, recoveredSigning.event_id)
+        if (recoveredSignature) {
+          onSignWaiver({
+            preparation: {
+              event_id: recoveredSigning.event_id,
+              transaction_id: recoveredSigning.id,
+              template_id: recoveredSigning.template_id,
+              template_version: recoveredSigning.template_version,
+              template_body: recoveredSigning.template_body,
+              client_name: recoveredSigning.client_name,
+              expires_at: recoveredSigning.signed_at,
+            },
+            recoveredSigning,
+            recoveredSignature,
+          })
+          return
+        }
+      }
+      onSignWaiver({ preparation: await prepareWaiverSigning(transaction.id) })
+    } catch (error) {
+      setWaiverActionError(error instanceof Error ? error.message : 'Could not prepare the waiver.')
+    } finally {
+      setPreparingWaiver(false)
+    }
+  }
+
+  async function openPdf(download: boolean) {
+    if (!waiver.data) return
+    setWaiverActionError(null)
+    const target = download ? null : window.open('', '_blank')
+    try {
+      const blob = await downloadWaiverPdf(waiver.data.pdf_storage_path)
+      const url = URL.createObjectURL(blob)
+      if (download) {
+        const anchor = document.createElement('a')
+        anchor.href = url
+        anchor.download = `waiver-${transaction.reference_code}.pdf`
+        anchor.click()
+      } else if (target) {
+        target.location.href = url
+      }
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    } catch (error) {
+      target?.close()
+      setWaiverActionError(error instanceof Error ? error.message : 'Could not open the waiver PDF.')
+    }
+  }
 
   return (
     <dialog ref={dialog} className="transaction-dialog transaction-drawer" aria-label="Transaction details">
@@ -75,6 +149,16 @@ export function TransactionDialog({
           ))}
           <footer><span>Total</span><strong>{formatMoney(transaction.total)}</strong></footer>
         </section>
+        {transaction.has_waiver ? (
+          <section className="transaction-actions-card">
+            <h3>Signed waiver</h3>
+            <p>{waiver.data ? `Template version ${waiver.data.template_version} · ${new Date(waiver.data.signed_at).toLocaleString('en-PH', { timeZone: 'Asia/Manila' })}` : 'Loading signed waiver…'}</p>
+            <div className="transaction-action-row">
+              <button type="button" className="dashboard-button" disabled={!waiver.data} onClick={() => void openPdf(false)}>View Waiver PDF</button>
+              <button type="button" className="dashboard-button" disabled={!waiver.data} onClick={() => void openPdf(true)}>Download Waiver PDF</button>
+            </div>
+          </section>
+        ) : null}
         {open ? (
           <section className="transaction-actions-card">
             <h3>Transaction actions</h3>
@@ -98,6 +182,9 @@ export function TransactionDialog({
                 disabled={mutation.isPending || transaction.payment_count > 0 || (hasServices && !transaction.has_waiver)}
                 onClick={onFinalize}
               >Finalize</button>
+              {hasServices && !transaction.has_waiver ? (
+                <button type="button" className="dashboard-button primary" disabled={preparingWaiver} onClick={() => void signWaiver()}>{preparingWaiver ? 'Preparing…' : 'Sign Waiver'}</button>
+              ) : null}
               <button
                 type="button"
                 className="dashboard-button danger"
@@ -110,6 +197,7 @@ export function TransactionDialog({
             {hasServices && !transaction.has_waiver ? <p>A signed waiver is required before this transaction can be finalized.</p> : null}
             {transaction.payment_count ? <p>Transactions with existing payments cannot use the Phase 4 full-payment flow.</p> : null}
             {mutation.isError ? <p role="alert" className="dashboard-error">{mutation.error.message}</p> : null}
+            {waiverActionError ? <p role="alert" className="dashboard-error">{waiverActionError}</p> : null}
           </section>
         ) : <p className="sale-rule">This transaction is {transaction.status} and has no further actions.</p>}
       </div>
@@ -140,10 +228,12 @@ export function FinalizeDialog({
   transaction,
   onBack,
   onCompleted,
+  initialStep = 'items',
 }: {
   transaction: DashboardTransaction
   onBack: () => void
   onCompleted: () => void
+  initialStep?: 'items' | 'payment'
 }) {
   const dialog = useModal()
   const services = useActiveCatalog('service')
@@ -155,7 +245,7 @@ export function FinalizeDialog({
     transaction.items.flatMap((item) => item.product_id ?? []),
   )
   const [payment, setPayment] = useState<PaymentDraft>({ method: 'cash', reference: '' })
-  const [step, setStep] = useState<'items' | 'payment'>('items')
+  const [step, setStep] = useState<'items' | 'payment'>(initialStep)
   const [error, setError] = useState<string | null>(null)
   const serviceOptions = useMemo(
     () => combinedOptions('service', transaction, services.data ?? []),

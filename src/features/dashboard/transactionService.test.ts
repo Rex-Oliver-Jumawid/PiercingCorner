@@ -3,10 +3,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getSupabaseClient } from '../../lib/supabase/client'
 import type { Database } from '../../types/database'
 import {
+  acceptNewServiceWaiver,
   finalizeTransaction,
   listTransactions,
+  prepareWaiverSigning,
   recordProductSale,
   updateTransactionStatus,
+  uploadWaiverDocuments,
 } from './transactionService'
 
 vi.mock('../../lib/supabase/client', () => ({ getSupabaseClient: vi.fn() }))
@@ -79,6 +82,47 @@ describe('transaction Supabase service boundary', () => {
       selected_payment_method: 'gcash',
       payment_reference: 'REF',
     })
+  })
+
+  it('prepares and accepts a pinned waiver without browser-owned prices or timestamps', async () => {
+    response([{ event_id: 'event-1', template_id: 'template-1', template_version: 1, template_body: 'Terms', expires_at: '2026-09-05T04:00:00Z' }])
+    await prepareWaiverSigning()
+    expect(request().url.pathname).toBe('/rest/v1/rpc/prepare_waiver_signing')
+
+    fetcher.mockReset()
+    response([{ id: 'tx-1', event_id: 'event-1', signed_at: '2026-09-05T03:30:00Z' }])
+    await acceptNewServiceWaiver({
+      eventId: 'event-1',
+      existingClient: { id: 'client-1', full_name: 'Ana', email: null, phone: null },
+      newClient: { first_name: '', last_name: '', email: '', phone: '' },
+      serviceIds: ['service-1'],
+      productIds: ['product-1'],
+    })
+    expect(request().body).toEqual({
+      signing_event_id: 'event-1',
+      client_details: { existing_client_id: 'client-1' },
+      selected_service_ids: ['service-1'],
+      selected_product_ids: ['product-1'],
+    })
+    expect(request().body).not.toHaveProperty('signed_at')
+    expect(request().body).not.toHaveProperty('total')
+  })
+
+  it('uploads the deterministic signature path before the PDF path', async () => {
+    response({ Key: 'signature.png' })
+    response({ Key: 'waiver.pdf' })
+    const paths = await uploadWaiverDocuments({
+      transactionId: 'tx-1',
+      eventId: 'event-1',
+      signature: new Blob(['signature'], { type: 'image/png' }),
+      pdf: new Blob(['pdf'], { type: 'application/pdf' }),
+    })
+    expect(paths).toEqual({
+      signature: 'transactions/tx-1/waivers/event-1/signature.png',
+      pdf: 'transactions/tx-1/waivers/event-1/waiver.pdf',
+    })
+    expect(new URL(String(fetcher.mock.calls[0][0])).pathname).toMatch(/\/transactions\/tx-1\/waivers\/event-1\/signature[.]png$/)
+    expect(new URL(String(fetcher.mock.calls[1][0])).pathname).toMatch(/\/transactions\/tx-1\/waivers\/event-1\/waiver[.]pdf$/)
   })
 
   it('updates only open transactions and replaces backend errors', async () => {

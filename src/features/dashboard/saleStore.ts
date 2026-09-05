@@ -13,6 +13,7 @@ export type SaleStep =
   | 'duplicate_review'
   | 'waiver'
   | 'payment'
+  | 'completed'
 
 interface SaleState {
   open: boolean

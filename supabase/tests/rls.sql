@@ -52,8 +52,8 @@ values
 
 insert into public.waiver_templates (id, version, body, created_by)
 values
-  ('00000000-0000-0000-0000-000000000301', 1, 'Template version one', '00000000-0000-0000-0000-000000000001'),
-  ('00000000-0000-0000-0000-000000000302', 2, 'Template version two', '00000000-0000-0000-0000-000000000001');
+  ('00000000-0000-0000-0000-000000000301', 2, 'Template version two', '00000000-0000-0000-0000-000000000001'),
+  ('00000000-0000-0000-0000-000000000302', 3, 'Template version three', '00000000-0000-0000-0000-000000000001');
 
 set local role authenticated;
 select set_config('request.jwt.claim.role', 'authenticated', true);
@@ -63,7 +63,7 @@ select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001
 insert into public.services (name, price, active) values ('RLS Owner Service', 10.00, false);
 insert into public.products (name, price, active) values ('RLS Owner Product', 10.00, false);
 insert into public.waiver_templates (id, version, body)
-values ('00000000-0000-0000-0000-000000000303', 3, 'Template version three');
+values ('00000000-0000-0000-0000-000000000303', 4, 'Template version four');
 
 do $$
 declare
@@ -198,6 +198,9 @@ values (
   'cash'
 );
 
+-- Signed waivers are now created only through the checked Phase 5 RPC. Seed one
+-- as the database owner so the legacy immutability assertions remain focused.
+reset role;
 insert into public.waivers (
   id,
   transaction_id,
@@ -216,6 +219,7 @@ values (
   'waivers/rls-test.pdf',
   now()
 );
+set local role authenticated;
 
 -- Test 6: Staff can read current template but cannot create a version.
 do $$
@@ -229,11 +233,11 @@ begin
   from public.waiver_templates;
 
   perform pg_temp.assert_true(template_count = 1, 'Staff must read exactly the current waiver template');
-  perform pg_temp.assert_true(current_version = 3, 'Staff must read the highest template version');
+  perform pg_temp.assert_true(current_version = 4, 'Staff must read the highest template version');
 
   begin
     insert into public.waiver_templates (version, body)
-    values (4, 'Denied template');
+    values (5, 'Denied template');
     raise exception 'Staff waiver template insert unexpectedly succeeded';
   exception
     when insufficient_privilege then null;

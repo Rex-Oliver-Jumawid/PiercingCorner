@@ -4,7 +4,7 @@ PiercingCorner is a management system for a piercing studio in Parañaque.
 
 ## Current implementation status
 
-**Phase 4 — COMPLETE**
+**Phase 5 — COMPLETE**
 
 Implemented: the Phase 0A frontend scaffold, migration-driven PostgreSQL schema,
 generated Supabase database types, Row Level Security policies, email/password
@@ -22,11 +22,13 @@ The Owner/Staff Dashboard now lists and searches today's Manila transactions,
 supports open-status operations, and provides a Zustand-driven Record Sale flow.
 Product-only sales and eligible existing-transaction finalization use atomic
 database functions with server-derived snapshots, totals, payment facts, and
-completion. New service sales stop without a database write at the Phase 5
-waiver handoff.
+completion. Service sales now pin versioned consent, capture a drawn signature,
+generate an A4 PDF with the server signing time, persist both private artifacts,
+and continue directly to full payment. Pending transactions provide recovery
+when signing persistence or payment is interrupted.
 
-Deliberately not implemented: Google OAuth, public booking, signature capture,
-PDFs, Storage uploads, dashboard metrics,
+Deliberately not implemented: Google OAuth, public booking, public waiver links,
+guardian/minor consent, dashboard metrics,
 reports and the remaining Studio scheduling model. The authenticated shell now
 uses the approved responsive application design.
 
@@ -37,7 +39,7 @@ uses the approved responsive application design.
 - TanStack Query
 - Zustand
 - Supabase (PostgreSQL, Auth, Storage, and Row Level Security)
-- `pdf-lib` in a later waiver/PDF phase
+- `pdf-lib` for waiver PDF generation
 
 ## Local development
 
@@ -103,7 +105,8 @@ See [the database contract](docs/database.md) for the schema, RLS matrix, and
 transaction boundaries. See [Phase 1A](docs/phase-1a.md) for the Login and
 route-authorization acceptance checklist, [Phase 2](docs/phase-2.md) for the
 Clients contract, [Phase 3](docs/phase-3.md) for catalog management, and
-[Phase 4](docs/phase-4.md) for the Dashboard transaction workflow.
+[Phase 4](docs/phase-4.md) for the Dashboard transaction workflow, and
+[Phase 5](docs/phase-5.md) for durable consent and private PDF storage.
 
 ## Architecture
 
@@ -124,5 +127,5 @@ access role; it will be modeled separately as a studio/service qualification.
 
 ## Next
 
-Phase 5 will connect service-containing Record Sale drafts to signature capture,
-versioned consent, private signature/PDF storage, and transaction continuation.
+Phase 6 will build the Sales list, Dashboard metrics, and reports over the
+transaction and payment facts now produced by Record Sale.

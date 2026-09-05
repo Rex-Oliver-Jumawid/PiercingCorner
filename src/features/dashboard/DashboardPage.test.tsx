@@ -7,10 +7,29 @@ import { DashboardPage } from './DashboardPage'
 import { useSaleStore } from './saleStore'
 import * as service from './transactionService'
 import * as clientService from '../clients/clientService'
+import * as waiverPdf from './waiverPdf'
 import type { DashboardTransaction } from './transactionModel'
 
 vi.mock('./transactionService')
 vi.mock('../clients/clientService')
+vi.mock('./waiverPdf', () => ({
+  buildWaiverPdf: vi.fn(async () => new Blob(['pdf'], { type: 'application/pdf' })),
+}))
+vi.mock('./SignaturePad', async () => {
+  const React = await import('react')
+  return {
+    SignaturePad: React.forwardRef(function MockSignaturePad(
+      { onInkChange }: { onInkChange: (hasInk: boolean) => void },
+      ref: React.ForwardedRef<{ clear: () => void; toPngBlob: () => Promise<Blob> }>,
+    ) {
+      React.useImperativeHandle(ref, () => ({
+        clear: () => onInkChange(false),
+        toPngBlob: async () => new Blob(['signature'], { type: 'image/png' }),
+      }))
+      return <button type="button" aria-label="Draw test signature" onClick={() => onInkChange(true)}>Signature drawing area</button>
+    }),
+  }
+})
 
 const transaction: DashboardTransaction = {
   id: 'tx-1',
@@ -66,6 +85,36 @@ beforeEach(() => {
   vi.mocked(service.finalizeTransaction).mockResolvedValue({
     id: 'tx-1',
     reference_code: transaction.reference_code,
+  })
+  vi.mocked(service.prepareWaiverSigning).mockResolvedValue({
+    event_id: 'event-1',
+    transaction_id: null,
+    template_id: 'template-1',
+    template_version: 1,
+    template_body: 'Approved waiver paragraph one.\n\nApproved waiver paragraph two.',
+    client_name: null,
+    expires_at: '2026-09-05T03:00:00Z',
+  })
+  vi.mocked(service.getTransactionWaiver).mockResolvedValue(null)
+  vi.mocked(service.getRecoverableWaiverSigning).mockResolvedValue(null)
+  vi.mocked(service.acceptNewServiceWaiver).mockResolvedValue({
+    id: 'tx-2',
+    reference_code: 'TXN-260905-000002',
+    client_name: 'Ana Cruz',
+    created_at: '2026-09-05T03:00:00Z',
+    total: 800,
+    event_id: 'event-1',
+    template_id: 'template-1',
+    template_version: 1,
+    template_body: 'Approved waiver paragraph one.\n\nApproved waiver paragraph two.',
+    signed_at: '2026-09-05T03:01:00Z',
+  })
+  vi.mocked(service.uploadWaiverDocuments).mockResolvedValue({
+    signature: 'transactions/tx-2/waivers/event-1/signature.png',
+    pdf: 'transactions/tx-2/waivers/event-1/waiver.pdf',
+  })
+  vi.mocked(service.finalizeSignedWaiver).mockResolvedValue({
+    id: 'event-1', transaction_id: 'tx-2', signed_at: '2026-09-05T03:01:00Z',
   })
   vi.mocked(clientService.findDuplicates).mockResolvedValue({ rows: [], count: 0 })
 })
@@ -140,10 +189,10 @@ describe('Dashboard transaction workflow', () => {
     fireEvent.click(screen.getByRole('button', { name: '+ Add Transaction' }))
     await chooseExistingClient()
     await selectItem('product', 'Titanium Stud')
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to Payment' }))
     const payment = screen.getByRole('dialog', { name: 'Complete Payment' })
     expect(within(payment).getByText('₱500.00')).toBeVisible()
-    fireEvent.click(within(payment).getByRole('button', { name: 'Confirm payment' }))
+    fireEvent.click(within(payment).getByRole('button', { name: 'Complete Payment' }))
     await waitFor(() =>
       expect(service.recordProductSale).toHaveBeenCalledWith({
         existingClient: { id: 'client-1', full_name: 'Ana Cruz', email: null, phone: null },
@@ -154,18 +203,47 @@ describe('Dashboard transaction workflow', () => {
     )
   })
 
-  it('keeps a service draft in-session at the Phase 5 waiver handoff', async () => {
+  it('loads the pinned waiver template for a service sale', async () => {
     harness()
     await screen.findByText(transaction.reference_code)
     fireEvent.click(screen.getByRole('button', { name: '+ Add Transaction' }))
     await chooseExistingClient()
     await selectItem('service', 'Lobe Piercing')
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to Waiver' }))
     const waiver = screen.getByRole('dialog', { name: 'Client Consent & Waiver' })
-    expect(within(waiver).getByText('Signature required before Pending')).toBeVisible()
-    expect(within(waiver).getByText(/Nothing has been written to Supabase/)).toBeVisible()
+    expect(await within(waiver).findByText('Approved waiver paragraph one.')).toBeVisible()
+    expect(service.prepareWaiverSigning).toHaveBeenCalledWith()
     expect(service.recordProductSale).not.toHaveBeenCalled()
     expect(useSaleStore.getState().serviceIds).toEqual(['service-1'])
+  })
+
+  it('continues a persisted service waiver directly through payment and completion', async () => {
+    harness()
+    await screen.findByText(transaction.reference_code)
+    fireEvent.click(screen.getByRole('button', { name: '+ Add Transaction' }))
+    await chooseExistingClient()
+    await selectItem('service', 'Lobe Piercing')
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to Waiver' }))
+    const waiver = screen.getByRole('dialog', { name: 'Client Consent & Waiver' })
+    await within(waiver).findByText('Approved waiver paragraph one.')
+    fireEvent.click(within(waiver).getByRole('button', { name: 'Draw test signature' }))
+    fireEvent.click(within(waiver).getByRole('button', { name: 'Accept Waiver & Continue to Payment' }))
+
+    const payment = await screen.findByRole('dialog', { name: 'Complete Payment' })
+    expect(waiverPdf.buildWaiverPdf).toHaveBeenCalledWith(expect.objectContaining({
+      templateVersion: 1,
+      templateBody: 'Approved waiver paragraph one.\n\nApproved waiver paragraph two.',
+      signedAt: '2026-09-05T03:01:00Z',
+    }))
+    expect(within(payment).getByText(/Waiver signed/)).toBeVisible()
+    fireEvent.click(within(payment).getByRole('button', { name: 'Complete Payment' }))
+    await waitFor(() => expect(service.finalizeTransaction).toHaveBeenCalledWith({
+      transactionId: 'tx-2',
+      serviceIds: ['service-1'],
+      productIds: [],
+      payment: { method: 'cash', reference: '' },
+    }, expect.anything()))
+    expect(await screen.findByRole('dialog', { name: 'Sale completed' })).toBeVisible()
   })
 
   it('finalizes a signed service transaction with one full payment', async () => {
@@ -222,6 +300,57 @@ describe('Dashboard transaction workflow', () => {
     expect(within(details).getByText(/signed waiver is required/)).toBeVisible()
   })
 
+  it('resumes an accepted signing with its uploaded PNG and fixed timestamp', async () => {
+    const unsignedService = {
+      ...transaction,
+      items: [{
+        id: 'item-2',
+        item_type: 'service' as const,
+        product_id: null,
+        service_id: 'service-1',
+        name: 'Lobe Piercing',
+        unit_price: 800,
+        quantity: 1,
+      }],
+      total: 800,
+    }
+    vi.mocked(service.listTransactions).mockResolvedValue([unsignedService])
+    vi.mocked(service.getRecoverableWaiverSigning).mockResolvedValue({
+      id: 'tx-1',
+      reference_code: transaction.reference_code,
+      client_name: 'Ana Cruz',
+      created_at: transaction.created_at,
+      total: 800,
+      event_id: 'event-recovered',
+      template_id: 'template-pinned',
+      template_version: 1,
+      template_body: 'Pinned recovery terms.',
+      signed_at: '2026-09-05T03:01:00Z',
+    })
+    vi.mocked(service.downloadSignaturePng).mockResolvedValue(new Blob(['signature'], { type: 'image/png' }))
+    vi.mocked(service.uploadWaiverDocuments).mockResolvedValue({
+      signature: 'transactions/tx-1/waivers/event-recovered/signature.png',
+      pdf: 'transactions/tx-1/waivers/event-recovered/waiver.pdf',
+    })
+
+    harness()
+    fireEvent.click(await screen.findByRole('button', { name: /Open transaction/ }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Transaction details' })).getByRole('button', { name: 'Sign Waiver' }))
+    const waiver = await screen.findByRole('dialog', { name: 'Client Consent & Waiver' })
+    expect(within(waiver).getByText(/uploaded signature and server signing time were recovered/)).toBeVisible()
+    expect(within(waiver).getByText(/accepted event does not expire/)).toBeVisible()
+    fireEvent.click(within(waiver).getByRole('button', { name: 'Retry waiver persistence' }))
+
+    const payment = await screen.findByRole('dialog', { name: 'Finalize transaction' })
+    expect(within(payment).getByRole('heading', { name: 'Complete Payment' })).toBeVisible()
+    expect(service.acceptExistingTransactionWaiver).not.toHaveBeenCalled()
+    expect(service.finalizeSignedWaiver).toHaveBeenCalledWith({
+      eventId: 'event-recovered',
+      signaturePath: 'transactions/tx-1/waivers/event-recovered/signature.png',
+      pdfPath: 'transactions/tx-1/waivers/event-recovered/waiver.pdf',
+    })
+  })
+
   it('checks new-client duplicates before product payment', async () => {
     vi.mocked(clientService.findDuplicates).mockResolvedValue({
       rows: [{ id: 'client-1', full_name: 'Ana Cruz', email: null, phone: null }],
@@ -234,7 +363,7 @@ describe('Dashboard transaction workflow', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'first name' }), { target: { value: 'Ana' } })
     fireEvent.change(screen.getByRole('textbox', { name: 'last name' }), { target: { value: 'Cruz' } })
     await selectItem('product', 'Titanium Stud')
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to Payment' }))
     expect(await screen.findByText('Possible matching clients')).toBeVisible()
     expect(screen.getByRole('button', { name: /Ana Cruz.*Use existing/ })).toBeVisible()
     expect(service.recordProductSale).not.toHaveBeenCalled()
