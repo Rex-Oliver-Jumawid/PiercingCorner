@@ -77,6 +77,12 @@ beforeEach(() => {
       ? [{ id: 'service-1', name: 'Lobe Piercing', price: 800, active: true }]
       : [{ id: 'product-1', name: 'Titanium Stud', price: 500, active: true }],
   )
+  vi.mocked(service.listActivePiercers).mockResolvedValue([
+    { id: 'piercer-1', name: 'Ana Santos' },
+  ])
+  vi.mocked(service.listActiveStations).mockResolvedValue([
+    { id: 'station-1', name: 'Station 1' },
+  ])
   vi.mocked(service.recordProductSale).mockResolvedValue({
     id: 'tx-2',
     reference_code: 'TXN-260905-000002',
@@ -140,6 +146,11 @@ function harness(role: AppRole = 'staff') {
 
 async function chooseExistingClient() {
   const dialog = screen.getByRole('dialog', { name: 'Add Transaction' })
+  const customerSearch = within(dialog).getByRole('textbox', { name: 'Customer' })
+  fireEvent.focus(customerSearch)
+  fireEvent.change(customerSearch, {
+    target: { value: 'Ana' },
+  })
   fireEvent.click(await within(dialog).findByRole('button', { name: /Ana Cruz/ }))
 }
 
@@ -152,7 +163,42 @@ async function selectItem(kind: 'service' | 'product', name: string) {
   fireEvent.click(within(selector).getByRole('button', { name: 'Done' }))
 }
 
+async function chooseServiceAssignment() {
+  const dialog = screen.getByRole('dialog', { name: 'Add Transaction' })
+  const piercer = within(dialog).getByRole('textbox', { name: 'Piercer' })
+  fireEvent.focus(piercer)
+  fireEvent.click(await within(dialog).findByRole('button', { name: 'Ana Santos' }))
+  const station = within(dialog).getByRole('textbox', { name: 'Station' })
+  fireEvent.focus(station)
+  fireEvent.click(await within(dialog).findByRole('button', { name: 'Station 1' }))
+}
+
 describe('Dashboard transaction workflow', () => {
+  it('shows client choices when the customer search receives focus', async () => {
+    harness()
+    await screen.findByText(transaction.reference_code)
+    fireEvent.click(screen.getByRole('button', { name: /Add Transaction/i }))
+
+    const dialog = screen.getByRole('dialog', { name: 'Add Transaction' })
+    expect(within(dialog).queryByRole('listbox', { name: 'Customer results' })).not.toBeInTheDocument()
+    expect(service.searchClients).not.toHaveBeenCalled()
+
+    fireEvent.focus(within(dialog).getByRole('textbox', { name: 'Customer' }))
+    expect(await within(dialog).findByRole('listbox', { name: 'Customer results' })).toBeVisible()
+    expect(service.searchClients).toHaveBeenCalledWith('', expect.any(AbortSignal))
+  })
+
+  it('opens item choices above the unchanged Add Transaction modal', async () => {
+    harness()
+    await screen.findByText(transaction.reference_code)
+    fireEvent.click(screen.getByRole('button', { name: /Add Transaction/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Services' }))
+
+    expect(screen.getByRole('dialog', { name: 'Add Transaction' })).toBeVisible()
+    expect(screen.getByRole('dialog', { name: 'Select Services' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Create Transaction Preview' })).toBeVisible()
+  })
+
   it.each(['owner', 'staff'] as const)('loads today’s transactions for %s', async (role) => {
     harness(role)
     expect(await screen.findByText(transaction.reference_code)).toBeVisible()
@@ -183,13 +229,41 @@ describe('Dashboard transaction workflow', () => {
     )
   })
 
+  it('confirms transaction cancellation with the designed dialog', async () => {
+    harness()
+    fireEvent.click(await screen.findByRole('button', { name: /Open transaction/ }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Transaction details' })).getByRole('button', { name: 'Cancel' }))
+
+    const confirmation = screen.getByRole('alertdialog', { name: 'Cancel this transaction?' })
+    expect(confirmation).toBeVisible()
+    expect(service.updateTransactionStatus).not.toHaveBeenCalledWith('tx-1', 'cancelled')
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'Cancel transaction' }))
+
+    await waitFor(() => expect(service.updateTransactionStatus).toHaveBeenCalledWith('tx-1', 'cancelled'))
+  })
+
+  it('keeps an unfinished sale when the discard dialog is dismissed', async () => {
+    harness()
+    await screen.findByText(transaction.reference_code)
+    fireEvent.click(screen.getByRole('button', { name: /Add Transaction/i }))
+    await selectItem('product', 'Titanium Stud')
+    fireEvent.click(screen.getByRole('button', { name: 'Close record sale' }))
+
+    const confirmation = screen.getByRole('alertdialog', { name: 'Discard this transaction draft?' })
+    expect(confirmation).toBeVisible()
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'Keep editing' }))
+
+    expect(screen.getByRole('dialog', { name: 'Add Transaction' })).toBeVisible()
+    expect(useSaleStore.getState().productIds).toEqual(['product-1'])
+  })
+
   it('completes an existing-client product sale through atomic checkout', async () => {
     harness()
     await screen.findByText(transaction.reference_code)
     fireEvent.click(screen.getByRole('button', { name: /Add Transaction/i }))
     await chooseExistingClient()
     await selectItem('product', 'Titanium Stud')
-    fireEvent.click(screen.getByRole('button', { name: 'Continue to Payment' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create Transaction Preview' }))
     const payment = screen.getByRole('dialog', { name: 'Complete Payment' })
     expect(within(payment).getByText('₱500.00')).toBeVisible()
     fireEvent.click(within(payment).getByRole('button', { name: 'Complete Payment' }))
@@ -209,12 +283,14 @@ describe('Dashboard transaction workflow', () => {
     fireEvent.click(screen.getByRole('button', { name: /Add Transaction/i }))
     await chooseExistingClient()
     await selectItem('service', 'Lobe Piercing')
-    fireEvent.click(screen.getByRole('button', { name: 'Continue to Waiver' }))
+    await chooseServiceAssignment()
+    fireEvent.click(screen.getByRole('button', { name: 'Create Transaction Preview' }))
     const waiver = screen.getByRole('dialog', { name: 'Client Consent & Waiver' })
     expect(await within(waiver).findByText('Approved waiver paragraph one.')).toBeVisible()
     expect(service.prepareWaiverSigning).toHaveBeenCalledWith()
     expect(service.recordProductSale).not.toHaveBeenCalled()
     expect(useSaleStore.getState().serviceIds).toEqual(['service-1'])
+    expect(service.acceptNewServiceWaiver).not.toHaveBeenCalled()
   })
 
   it('continues a persisted service waiver directly through payment and completion', async () => {
@@ -223,7 +299,8 @@ describe('Dashboard transaction workflow', () => {
     fireEvent.click(screen.getByRole('button', { name: /Add Transaction/i }))
     await chooseExistingClient()
     await selectItem('service', 'Lobe Piercing')
-    fireEvent.click(screen.getByRole('button', { name: 'Continue to Waiver' }))
+    await chooseServiceAssignment()
+    fireEvent.click(screen.getByRole('button', { name: 'Create Transaction Preview' }))
     const waiver = screen.getByRole('dialog', { name: 'Client Consent & Waiver' })
     await within(waiver).findByText('Approved waiver paragraph one.')
     fireEvent.click(within(waiver).getByRole('button', { name: 'Draw test signature' }))
@@ -236,6 +313,10 @@ describe('Dashboard transaction workflow', () => {
       signedAt: '2026-09-05T03:01:00Z',
     }))
     expect(within(payment).getByText(/Waiver signed/)).toBeVisible()
+    expect(service.acceptNewServiceWaiver).toHaveBeenCalledWith(expect.objectContaining({
+      piercerId: 'piercer-1',
+      stationId: 'station-1',
+    }))
     fireEvent.click(within(payment).getByRole('button', { name: 'Complete Payment' }))
     await waitFor(() => expect(service.finalizeTransaction).toHaveBeenCalledWith({
       transactionId: 'tx-2',
@@ -363,9 +444,30 @@ describe('Dashboard transaction workflow', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'first name' }), { target: { value: 'Ana' } })
     fireEvent.change(screen.getByRole('textbox', { name: 'last name' }), { target: { value: 'Cruz' } })
     await selectItem('product', 'Titanium Stud')
-    fireEvent.click(screen.getByRole('button', { name: 'Continue to Payment' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create Transaction Preview' }))
     expect(await screen.findByText('Possible matching clients')).toBeVisible()
     expect(screen.getByRole('button', { name: /Ana Cruz.*Use existing/ })).toBeVisible()
     expect(service.recordProductSale).not.toHaveBeenCalled()
+  })
+
+  it('takes a new service client with no matches directly to the waiver', async () => {
+    harness()
+    await screen.findByText(transaction.reference_code)
+    fireEvent.click(screen.getByRole('button', { name: /Add Transaction/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Walk-in / New Client' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'first name' }), { target: { value: 'Bea' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'last name' }), { target: { value: 'Reyes' } })
+    await selectItem('service', 'Lobe Piercing')
+    await chooseServiceAssignment()
+    fireEvent.click(screen.getByRole('button', { name: 'Create Transaction Preview' }))
+
+    expect(await screen.findByRole('dialog', { name: 'Client Consent & Waiver' })).toBeVisible()
+    expect(screen.queryByRole('dialog', { name: 'Review Client Match' })).not.toBeInTheDocument()
+    expect(clientService.findDuplicates).toHaveBeenCalledWith(
+      { full_name: 'Bea Reyes', email: null, phone: null },
+      undefined,
+      0,
+      expect.any(AbortSignal),
+    )
   })
 })

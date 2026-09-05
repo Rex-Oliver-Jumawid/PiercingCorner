@@ -77,9 +77,25 @@ export async function saveClient(input: ClientInput, id?: string) {
   const { value, errors } = validateClient(input)
   if (Object.keys(errors).length)
     throw new Error('Check the client details before saving.')
-  const table = getSupabaseClient().from('clients')
-  const request = id ? table.update(value).eq('id', id) : table.insert(value)
+  const client = getSupabaseClient()
+  const request = id
+    ? client.rpc('update_client', {
+        target_client_id: id,
+        candidate_name: value.full_name,
+        candidate_email: value.email ?? undefined,
+        candidate_phone: value.phone ?? undefined,
+      })
+    : client.rpc('create_client', {
+        candidate_name: value.full_name,
+        candidate_email: value.email ?? undefined,
+        candidate_phone: value.phone ?? undefined,
+      })
   const { data, error } = await request.select('*').single()
+  if (error?.code === '23505') {
+    throw new Error(
+      'A client with the same name, email, or phone number already exists.',
+    )
+  }
   if (error)
     throw new Error(
       'Could not save this client. Your changes have been kept; please try again.',

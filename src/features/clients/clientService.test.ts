@@ -78,16 +78,31 @@ describe('Clients Supabase service boundary', () => {
     })
     expect(request().url.searchParams.get('offset')).toBe('25')
   })
-  it('updates only editable fields and targets the selected client', async () => {
+  it('updates through the atomic backend duplicate boundary', async () => {
     response({ id: 'current', full_name: 'Ana', email: null, phone: null })
     await saveClient({ full_name: ' Ana ', email: ' ', phone: null }, 'current')
-    expect(request().init?.method).toBe('PATCH')
-    expect(request().url.searchParams.get('id')).toBe('eq.current')
+    expect(request().url.pathname).toBe('/rest/v1/rpc/update_client')
     expect(request().body).toEqual({
-      full_name: 'Ana',
-      email: null,
-      phone: null,
+      target_client_id: 'current',
+      candidate_name: 'Ana',
     })
+  })
+  it('creates clients through the atomic backend duplicate boundary', async () => {
+    response({ id: 'new', full_name: 'Ana', email: null, phone: '0917' })
+    await saveClient({ full_name: ' Ana ', email: ' ', phone: ' 0917 ' })
+    expect(request().url.pathname).toBe('/rest/v1/rpc/create_client')
+    expect(request().body).toEqual({
+      candidate_name: 'Ana',
+      candidate_phone: '0917',
+    })
+  })
+  it('maps only a backend duplicate result to the duplicate message', async () => {
+    response({ message: 'duplicate_client', code: '23505' }, 409)
+    await expect(
+      saveClient({ full_name: 'Ana', email: null, phone: null }),
+    ).rejects.toThrow(
+      'A client with the same name, email, or phone number already exists.',
+    )
   })
   it('does not send invalid registration input to the database', async () => {
     await expect(

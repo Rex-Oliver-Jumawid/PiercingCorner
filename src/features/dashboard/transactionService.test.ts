@@ -97,10 +97,12 @@ describe('transaction Supabase service boundary', () => {
       newClient: { first_name: '', last_name: '', email: '', phone: '' },
       serviceIds: ['service-1'],
       productIds: ['product-1'],
+      piercerId: 'piercer-1',
+      stationId: 'station-1',
     })
     expect(request().body).toEqual({
       signing_event_id: 'event-1',
-      client_details: { existing_client_id: 'client-1' },
+      client_details: { existing_client_id: 'client-1', piercer_profile_id: 'piercer-1', station_id: 'station-1' },
       selected_service_ids: ['service-1'],
       selected_product_ids: ['product-1'],
     })

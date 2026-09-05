@@ -25,6 +25,8 @@
 DELETE FROM public.payments WHERE transaction_id::text LIKE 'a1000000-%';
 DELETE FROM public.transaction_items WHERE transaction_id::text LIKE 'a1000000-%';
 DELETE FROM public.transactions WHERE id::text LIKE 'a1000000-%';
+DELETE FROM public.piercer_profiles WHERE id::text LIKE 'a4000000-%';
+DELETE FROM public.stations WHERE id::text LIKE 'a5000000-%';
 DELETE FROM public.clients WHERE id::text LIKE 'a1000000-%';
 DELETE FROM public.staff_accounts WHERE id IN (
   'a0000000-0000-0000-0000-000000000001',
@@ -174,6 +176,21 @@ VALUES
   ('a2000000-0000-0000-0000-000000000003', 'Nostril Piercing', 900.00, true),
   ('a2000000-0000-0000-0000-000000000004', 'Industrial Piercing', 1500.00, true),
   ('a2000000-0000-0000-0000-000000000005', 'Archived Service', 400.00, false)
+ON CONFLICT DO NOTHING;
+
+-- Studio assignment resources used by service transactions.
+INSERT INTO public.piercer_profiles (id, display_name, active)
+VALUES
+  ('a4000000-0000-0000-0000-000000000001', 'Ana Santos', true),
+  ('a4000000-0000-0000-0000-000000000002', 'Bea Reyes', true),
+  ('a4000000-0000-0000-0000-000000000003', 'Carlo Mendoza', true)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO public.stations (id, name, active)
+VALUES
+  ('a5000000-0000-0000-0000-000000000001', 'Station 1', true),
+  ('a5000000-0000-0000-0000-000000000002', 'Station 2', true),
+  ('a5000000-0000-0000-0000-000000000003', 'Station 3', true)
 ON CONFLICT DO NOTHING;
 
 -- Initial Products

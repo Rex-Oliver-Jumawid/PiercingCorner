@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { X } from 'lucide-react'
 import { formatMoney } from '../dashboard/transactionModel'
 import { useCompletedSale, useSaleWaiver } from './salesQueries'
 import { downloadSaleWaiver } from './salesService'
 import { manilaDateTime, paymentMethodLabel } from './salesModel'
+import { useRightSideDrawer } from '../../components/ui/useRightSideDrawer'
 import { eyebrow } from '../../components/ui/studio-styles'
 import {
   dashButton,
@@ -12,16 +13,16 @@ import {
 } from '../../components/ui/dashboard-styles'
 
 export function SaleDetails({ id, onClose }: { id: string; onClose: () => void }) {
-  const dialog = useRef<HTMLDialogElement>(null)
   const detail = useCompletedSale(id)
   const waiver = useSaleWaiver(id, detail.data?.has_waiver ?? false)
   const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    const current = dialog.current
-    current?.showModal()
-    return () => current?.close()
-  }, [])
+  const {
+    setDialog,
+    closing,
+    requestClose,
+    handleCancel,
+    handleBackdropPointerDown,
+  } = useRightSideDrawer(onClose)
 
   async function openPdf(download: boolean) {
     if (!waiver.data) return
@@ -47,13 +48,11 @@ export function SaleDetails({ id, onClose }: { id: string; onClose: () => void }
 
   return (
     <dialog
-      ref={dialog}
-      className={`sale-detail-dialog ${operationDialog} w-[min(640px,100%)] p-0`}
+      ref={setDialog}
+      className={`sale-detail-dialog right-side-drawer${closing ? ' is-closing' : ''} ${operationDialog} w-[min(640px,100%)] p-0`}
       aria-label="Completed sale details"
-      onCancel={(event) => {
-        event.preventDefault()
-        onClose()
-      }}
+      onCancel={handleCancel}
+      onPointerDown={handleBackdropPointerDown}
     >
       <header className="sticky top-0 z-10 flex items-start justify-between border-b border-dashed border-[#c88f6e] bg-[#fff5df] px-[21px] py-[19px]">
         <div>
@@ -71,7 +70,7 @@ export function SaleDetails({ id, onClose }: { id: string; onClose: () => void }
           type="button"
           className="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[10px] border-[1.5px] border-hippy-ink bg-[#efc6a4] p-0 text-hippy-ink hover:bg-[#e8b58f]"
           aria-label="Close sale details"
-          onClick={onClose}
+          onClick={requestClose}
         >
           <X className="size-4" />
         </button>
@@ -194,7 +193,7 @@ export function SaleDetails({ id, onClose }: { id: string; onClose: () => void }
         <button
           type="button"
           className={dashButton({ variant: 'primary' })}
-          onClick={onClose}
+          onClick={requestClose}
         >
           Done
         </button>

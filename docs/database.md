@@ -32,13 +32,14 @@ it leaves no sample accounts or business records in the local database.
 | `staff_accounts` | One-to-one application-account metadata for `auth.users`; display name, `owner`/`staff`, and active/inactive status only. |
 | `clients` | Minimal walk-in-friendly client record. |
 | `services` / `products` | Deactivatable catalogs with exact `numeric(12,2)` prices. |
+| `piercer_profiles` / `stations` | Deactivatable Studio resources assigned to service transactions. |
 | `transactions` | Operational Dashboard transaction with immutable client snapshot and first completion timestamp; not an appointment or draft sale. |
 | `transaction_items` | Service/product lines with name and price snapshots. |
 | `payments` | Recorded payment facts; never gateway credentials. |
 | `waiver_templates` | Append-only numbered consent-template versions. |
 | `waivers` | One immutable signed consent record per transaction with private Storage paths. |
 
-`transactions` belongs to a client and the account that recorded it.
+`transactions` belongs to a client and the account that recorded it. Service transactions also retain their selected piercer profile and station.
 `transaction_items` references exactly one catalog row: service or product, never
 both. Payments and waivers belong to a transaction; `waivers.transaction_id` is
 unique. Historical FKs use `RESTRICT`; catalogs deactivate and accounts become
@@ -139,6 +140,13 @@ without constructing PostgREST filter expressions from user input.
 email, and phone matches while optionally excluding an edited client. These
 interfaces execute with the caller's permissions, so existing Clients and
 Transactions RLS continues to govern every row.
+
+`create_client(text, text, text)` is the Clients-page registration boundary. It
+requires an active account and atomically checks normalized name, email, and
+phone values before inserting. `update_client(uuid, text, text, text)` applies
+the same check while excluding the target record. A matching record raises a
+duplicate error. Both functions expose only the operations already allowed to
+active Owner and Staff accounts.
 
 ## Phase 5 waiver signing and private documents
 

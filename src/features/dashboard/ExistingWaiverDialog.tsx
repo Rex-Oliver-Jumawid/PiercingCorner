@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog'
 import { SignaturePad, type SignaturePadHandle } from './SignaturePad'
 import { abandonWaiverSigning, acceptExistingTransactionWaiver, finalizeSignedWaiver, uploadWaiverDocuments } from './transactionService'
 import type { AcceptedWaiverSigning, DashboardTransaction, WaiverPreparation } from './transactionModel'
@@ -12,7 +13,7 @@ export function ExistingWaiverDialog({ transaction, preparation, recoveredSignin
   onBack: () => void
   onPersisted: () => void
 }) {
-  const dialog = useRef<HTMLDialogElement>(null)
+  const [dialog, setDialog] = useState<HTMLDialogElement | null>(null)
   const pad = useRef<SignaturePadHandle>(null)
   const cache = useQueryClient()
   const [hasInk, setHasInk] = useState(false)
@@ -20,8 +21,9 @@ export function ExistingWaiverDialog({ transaction, preparation, recoveredSignin
   const [accepted, setAccepted] = useState<AcceptedWaiverSigning | null>(recoveredSigning)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [confirmingLeave, setConfirmingLeave] = useState(false)
 
-  useEffect(() => { const current = dialog.current; current?.showModal(); return () => current?.close() }, [])
+  useEffect(() => { dialog?.showModal(); return () => dialog?.close() }, [dialog])
 
   async function persist() {
     if (!hasInk && !signature) return
@@ -44,12 +46,12 @@ export function ExistingWaiverDialog({ transaction, preparation, recoveredSignin
 
   function close() {
     if (busy) return
-    if (accepted && !window.confirm('Leave this flow? The accepted transaction remains Pending.')) return
+    if (accepted) { setConfirmingLeave(true); return }
     if (!accepted) void abandonWaiverSigning(preparation.event_id)
     onBack()
   }
 
-  return <dialog ref={dialog} className="transaction-dialog" aria-label="Client Consent & Waiver" onCancel={(event) => { event.preventDefault(); close() }}>
+  return <dialog ref={setDialog} className="transaction-dialog" aria-label="Client Consent & Waiver" onCancel={(event) => { event.preventDefault(); close() }}>
     <header className="transaction-dialog-head"><div><p className="dashboard-eyebrow">PIERCING CORNER</p><h2>Client Consent & Waiver</h2></div><button type="button" aria-label="Close waiver" disabled={busy} onClick={close}>×</button></header>
     <div className="transaction-dialog-body waiver-signing-body">
       <div className="waiver-client-card"><small>Full Name</small><strong>{preparation.client_name || transaction.client_name}</strong></div>
@@ -62,5 +64,15 @@ export function ExistingWaiverDialog({ transaction, preparation, recoveredSignin
       {error ? <p role="alert" className="dashboard-error">{error}</p> : null}
     </div>
     <footer className="transaction-dialog-foot"><button type="button" className="dashboard-button" disabled={busy} onClick={close}>Back</button><button type="button" className="dashboard-button primary" disabled={busy || (!hasInk && !signature)} onClick={() => void persist()}>{busy ? 'Saving waiver…' : accepted ? 'Retry waiver persistence' : 'Accept Waiver & Continue to Payment'}</button></footer>
+    <ConfirmationDialog
+      open={confirmingLeave}
+      title="Leave waiver signing?"
+      description="The accepted transaction will remain Pending. You can resume it later from the Dashboard without changing the recorded signing time."
+      confirmLabel="Leave as Pending"
+      cancelLabel="Continue waiver"
+      portalContainer={dialog}
+      onOpenChange={setConfirmingLeave}
+      onConfirm={onBack}
+    />
   </dialog>
 }

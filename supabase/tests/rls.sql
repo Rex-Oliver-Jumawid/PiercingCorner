@@ -50,6 +50,16 @@ values
   ('00000000-0000-0000-0000-000000000201', 'RLS Active Product', 50.00, true),
   ('00000000-0000-0000-0000-000000000202', 'RLS Inactive Product', 75.00, false);
 
+insert into public.piercer_profiles (id, display_name, active)
+values
+  ('00000000-0000-0000-0000-000000000211', 'RLS Active Piercer', true),
+  ('00000000-0000-0000-0000-000000000212', 'RLS Inactive Piercer', false);
+
+insert into public.stations (id, name, active)
+values
+  ('00000000-0000-0000-0000-000000000221', 'RLS Active Station', true),
+  ('00000000-0000-0000-0000-000000000222', 'RLS Inactive Station', false);
+
 insert into public.waiver_templates (id, version, body, created_by)
 values
   ('00000000-0000-0000-0000-000000000301', 2, 'Template version two', '00000000-0000-0000-0000-000000000001'),
@@ -104,6 +114,8 @@ do $$
 declare
   service_count integer;
   product_count integer;
+  piercer_count integer;
+  station_count integer;
   changed_count integer;
 begin
   select count(*) into service_count from public.services
@@ -112,6 +124,12 @@ begin
   where id in ('00000000-0000-0000-0000-000000000201', '00000000-0000-0000-0000-000000000202');
   perform pg_temp.assert_true(service_count = 1, 'Staff must read only active services');
   perform pg_temp.assert_true(product_count = 1, 'Staff must read only active products');
+  select count(*) into piercer_count from public.piercer_profiles
+  where id in ('00000000-0000-0000-0000-000000000211', '00000000-0000-0000-0000-000000000212');
+  select count(*) into station_count from public.stations
+  where id in ('00000000-0000-0000-0000-000000000221', '00000000-0000-0000-0000-000000000222');
+  perform pg_temp.assert_true(piercer_count = 1, 'Staff must read only active piercers');
+  perform pg_temp.assert_true(station_count = 1, 'Staff must read only active stations');
 
   begin
     insert into public.services (name, price) values ('Denied Service', 1.00);

@@ -36,20 +36,10 @@ export function useTransaction(clientId: string, id: string) {
     queryFn: ({ signal }) => service.getTransaction(clientId, id, signal),
   })
 }
-export function useDuplicates(
-  input: ClientInput | null,
-  id: string | undefined,
-  page: number,
-) {
-  const scope = useClientScope()
-  return useQuery({
-    queryKey: [...scope, 'duplicates', input, id, page],
-    enabled: input !== null,
-    retry: false,
-    queryFn: ({ signal }) => {
-      if (!input) throw new Error('Client details are required.')
-      return service.findDuplicates(input, id, page, signal)
-    },
+export function useCheckDuplicates() {
+  return useMutation({
+    mutationFn: (input: ClientInput) =>
+      service.findDuplicates(input, undefined, 0, new AbortController().signal),
   })
 }
 export function useSaveClient(onSaved: (client: Client) => void) {

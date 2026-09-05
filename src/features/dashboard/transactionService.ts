@@ -12,6 +12,7 @@ import type {
   TransactionStatus,
   TransactionWaiver,
   WaiverPreparation,
+  StudioResourceOption,
 } from './transactionModel'
 
 export async function listTransactions(search: string, signal: AbortSignal) {
@@ -53,6 +54,30 @@ export async function listActiveCatalog(
     .order('id')
     .abortSignal(signal)
   if (error) throw new Error(`Unable to load ${kind}s. Please try again.`)
+  return data ?? []
+}
+
+export async function listActivePiercers(signal: AbortSignal): Promise<StudioResourceOption[]> {
+  const { data, error } = await getSupabaseClient()
+    .from('piercer_profiles')
+    .select('id, display_name')
+    .eq('active', true)
+    .order('display_name')
+    .order('id')
+    .abortSignal(signal)
+  if (error) throw new Error('Unable to load piercers. Please try again.')
+  return (data ?? []).map((piercer) => ({ id: piercer.id, name: piercer.display_name }))
+}
+
+export async function listActiveStations(signal: AbortSignal): Promise<StudioResourceOption[]> {
+  const { data, error } = await getSupabaseClient()
+    .from('stations')
+    .select('id, name')
+    .eq('active', true)
+    .order('name')
+    .order('id')
+    .abortSignal(signal)
+  if (error) throw new Error('Unable to load stations. Please try again.')
   return data ?? []
 }
 
@@ -118,14 +143,16 @@ export async function finalizeTransaction(input: {
 function clientDetails(
   existingClient: ClientOption | null,
   newClient: NewClientDraft,
+  assignment?: { piercerId: string; stationId: string },
 ): Json {
-  return existingClient
+  const client = existingClient
     ? { existing_client_id: existingClient.id }
     : {
         full_name: `${newClient.first_name.trim()} ${newClient.last_name.trim()}`,
         email: newClient.email.trim() || null,
         phone: newClient.phone.trim() || null,
       }
+  return assignment ? { ...client, piercer_profile_id: assignment.piercerId, station_id: assignment.stationId } : client
 }
 
 export async function prepareWaiverSigning(
@@ -146,10 +173,12 @@ export async function acceptNewServiceWaiver(input: {
   newClient: NewClientDraft
   serviceIds: string[]
   productIds: string[]
+  piercerId: string
+  stationId: string
 }): Promise<AcceptedWaiverSigning> {
   const { data, error } = await getSupabaseClient().rpc('accept_new_service_waiver', {
     signing_event_id: input.eventId,
-    client_details: clientDetails(input.existingClient, input.newClient),
+    client_details: clientDetails(input.existingClient, input.newClient, { piercerId: input.piercerId, stationId: input.stationId }),
     selected_service_ids: input.serviceIds,
     selected_product_ids: input.productIds,
   })

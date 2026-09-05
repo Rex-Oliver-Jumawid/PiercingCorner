@@ -12,6 +12,20 @@
 
 /* Feature-specific styles only -- shared primitives come from dashboard-styles.ts */
 
+.clients-toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.clients-help {
+  margin: -14px 0 -10px;
+  color: var(--client-muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
 .client-link {
   color: var(--client-ink);
   font-weight: 700;
@@ -41,6 +55,7 @@
   background: #fff8e8;
   padding: 0;
   box-shadow: 8px 8px 0 var(--client-ink);
+  color: var(--client-ink);
 }
 
 .client-dialog[open] {
@@ -48,19 +63,17 @@
   flex-direction: column;
 }
 
+.client-dialog.right-side-drawer {
+  width: min(680px, calc(100vw - 24px));
+  height: calc(100dvh - 24px);
+  max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 24px);
+  overflow: hidden;
+}
+
 .client-dialog::backdrop {
   background: rgba(48, 35, 31, 0.45);
   backdrop-filter: blur(4px);
-}
-
-.client-dialog.client-drawer {
-  width: min(590px, 100%);
-  height: 100dvh;
-  max-height: 100dvh;
-  margin: 0 0 0 auto;
-  border-width: 0 0 0 2px;
-  border-radius: 0;
-  box-shadow: -8px 0 0 var(--client-ink);
 }
 
 .client-dialog-head {
@@ -81,8 +94,19 @@
 
 .client-dialog-title h2 {
   margin: 4px 0 0;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 22px;
+  line-height: 1.15;
   overflow-wrap: anywhere;
+}
+
+.client-eyebrow {
+  margin: 0 !important;
+  color: var(--client-rust) !important;
+  font-size: 8px !important;
+  font-weight: 900;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
 }
 
 .client-dialog-title > p:not(.client-eyebrow) {
@@ -117,6 +141,11 @@
 
 .client-close:hover {
   background: #fca783;
+}
+
+.client-close:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .client-close:focus-visible {
@@ -165,6 +194,39 @@
   gap: 6px;
 }
 
+.client-form label > span:first-child {
+  color: #9a5a40;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.client-form input {
+  width: 100%;
+  min-height: 42px;
+  border: 1.5px solid var(--client-ink);
+  border-radius: 10px 7px 11px 8px;
+  outline: none;
+  background: #fffaf0;
+  padding: 8px 12px;
+  box-shadow: 2px 2px 0 #d9a47e;
+  color: var(--client-ink);
+  font-size: 12px;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.client-form input:focus {
+  border-color: var(--client-orange);
+  outline: 3px solid rgba(223, 104, 44, 0.21);
+  box-shadow: 2px 2px 0 var(--client-orange);
+}
+
+.client-form input[aria-invalid='true'] {
+  border-color: #a43322;
+  box-shadow: 2px 2px 0 #d49a87;
+}
+
 .client-form label:first-child {
   grid-column: 1 / -1;
 }
@@ -179,6 +241,49 @@
   gap: 10px;
   margin-top: 14px;
   flex-wrap: wrap;
+}
+
+.client-button {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1.5px solid var(--client-ink);
+  border-radius: 10px 7px 11px 8px;
+  background: #fff7e3;
+  padding: 7px 12px;
+  box-shadow: 2px 2px 0 var(--client-ink);
+  color: var(--client-ink);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 800;
+  text-decoration: none;
+  transition: transform 120ms ease, background 120ms ease, box-shadow 120ms ease;
+}
+
+.client-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: #fff1cf;
+  box-shadow: 3px 3px 0 var(--client-ink);
+}
+
+.client-button.primary {
+  background: var(--client-orange);
+  color: #fff8e6;
+}
+
+.client-button.primary:hover:not(:disabled) {
+  background: #ca5725;
+}
+
+.client-button.soft {
+  background: var(--client-sand);
+}
+
+.client-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .client-field-error {
@@ -202,27 +307,12 @@
   line-height: 1.5;
 }
 
-.client-duplicates {
-  margin-top: 14px;
-  border: 1.5px dashed var(--client-line);
-  border-radius: 12px;
-  background: #fff3d8;
-  padding: 14px;
-}
-
-.client-duplicates h3 {
-  margin: 0;
-  font-size: 16px;
-}
-
-.client-duplicates ul,
 .client-item-list {
   margin: 10px 0 0;
   padding: 0;
   list-style: none;
 }
 
-.client-duplicates li,
 .client-item-list li {
   display: flex;
   align-items: center;
@@ -231,6 +321,14 @@
   border-top: 1px dashed var(--client-line);
   padding: 10px 0;
   overflow-wrap: anywhere;
+}
+
+.client-item-list li:first-child {
+  border-top: 0;
+}
+
+.client-item-list li p {
+  margin: 3px 0 0;
 }
 
 .client-contact {
@@ -282,22 +380,92 @@
 }
 
 .client-dialog .client-table-wrap {
+  overflow-x: auto;
+  border: 1.5px solid var(--client-ink);
   border-radius: 14px;
+  background: var(--client-paper);
   box-shadow: none;
 }
 
 .client-dialog table {
+  width: 100%;
   min-width: 530px;
+  border-collapse: collapse;
 }
 
 .client-dialog th {
   height: 38px;
+  background: #f5ddba;
   padding: 0 12px;
+  color: #795346;
+  font-size: 8px;
+  letter-spacing: 0.05em;
+  text-align: left;
+  text-transform: uppercase;
 }
 
 .client-dialog td {
+  border-top: 1px dashed #dab08f;
   padding: 10px 12px;
   font-size: 12px;
+}
+
+.client-dialog td small {
+  display: block;
+  margin-top: 3px;
+  color: var(--client-muted);
+  font-size: 10px;
+}
+
+.client-dialog.right-side-drawer .client-table-wrap {
+  overflow-x: hidden;
+}
+
+.client-dialog.right-side-drawer table {
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.client-dialog.right-side-drawer th,
+.client-dialog.right-side-drawer td {
+  overflow-wrap: anywhere;
+}
+
+.client-dialog.right-side-drawer th:nth-child(1),
+.client-dialog.right-side-drawer td:nth-child(1) {
+  width: 40%;
+}
+
+.client-dialog.right-side-drawer th:nth-child(2),
+.client-dialog.right-side-drawer td:nth-child(2) {
+  width: 35%;
+}
+
+.client-dialog.right-side-drawer th:nth-child(3),
+.client-dialog.right-side-drawer td:nth-child(3) {
+  width: 25%;
+}
+
+.client-pagination {
+  display: flex;
+  min-height: 54px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  border-top: 1px dashed #d6a786;
+  padding: 9px 12px;
+  color: var(--client-muted);
+  font-size: 10px;
+}
+
+.client-pagination span {
+  margin-right: auto;
+}
+
+.client-pagination .client-button {
+  min-height: 32px;
+  padding: 5px 9px;
+  font-size: 9px;
 }
 
 .client-status {
@@ -364,12 +532,20 @@
 }
 
 @media (max-width: 760px) {
+  .clients-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
   .client-dialog {
     width: calc(100% - 20px);
   }
 
-  .client-dialog.client-drawer {
-    width: 100%;
+  .client-dialog.right-side-drawer {
+    width: calc(100vw - 20px);
+    height: calc(100dvh - 20px);
+    max-width: calc(100vw - 20px);
+    max-height: calc(100dvh - 20px);
   }
 
   .client-dialog-head,
@@ -391,8 +567,12 @@
     grid-column: auto;
   }
 
-  .client-duplicates li {
+  .client-pagination {
     align-items: stretch;
-    flex-direction: column;
+    flex-wrap: wrap;
+  }
+
+  .client-pagination span {
+    width: 100%;
   }
 }

@@ -1,5 +1,6 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useId, useState } from 'react'
 import type { ReactNode } from 'react'
+import { useRightSideDrawer } from '../../components/ui/useRightSideDrawer'
 import { PAGE_SIZE } from './clientModel'
 import { ClientDialogBusyContext } from './clientDialogContext'
 
@@ -22,30 +23,29 @@ export function ClientDialog({
   onClose: () => void
   drawer?: boolean
 }) {
-  const ref = useRef<HTMLDialogElement>(null)
   const titleId = useId()
   const [busy, setBusy] = useState(false)
-  useEffect(() => {
-    const previous = document.activeElement
-    const dialog = ref.current
-    dialog?.showModal()
-    return () => {
-      dialog?.close()
-      if (previous instanceof HTMLElement && previous.isConnected)
-        previous.focus()
-    }
-  }, [])
+  const {
+    setDialog,
+    closing,
+    requestClose,
+    handleCancel,
+    handleBackdropPointerDown,
+  } = useRightSideDrawer(onClose, busy)
   return (
     <dialog
-      ref={ref}
-      className={`client-dialog ${drawer ? 'client-drawer' : ''}`}
+      ref={setDialog}
+      className={`client-dialog ${drawer ? `right-side-drawer${closing ? ' is-closing' : ''}` : ''}`}
       aria-label={ariaLabel}
       aria-modal="true"
-      onCancel={(event) => {
-        event.preventDefault()
-        event.stopPropagation()
-        if (!busy) onClose()
-      }}
+      onCancel={drawer
+        ? handleCancel
+        : (event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            if (!busy) onClose()
+          }}
+      onPointerDown={drawer ? handleBackdropPointerDown : undefined}
     >
       <header className="client-dialog-head">
         <div className="client-dialog-title">
@@ -60,7 +60,7 @@ export function ClientDialog({
             className="client-close"
             aria-label={`Close ${ariaLabel}`}
             disabled={busy}
-            onClick={onClose}
+            onClick={drawer ? requestClose : onClose}
           >
             ×
           </button>

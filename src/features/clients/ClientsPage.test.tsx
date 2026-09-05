@@ -78,15 +78,15 @@ function harness(
   return { ...render(wrap(content)), cache, wrap }
 }
 
-async function reviewNew(name = 'New Client') {
+async function submitNew(name = 'New Client') {
   fireEvent.click(screen.getByRole('button', { name: /Add client/i }))
-  fireEvent.change(screen.getByRole('textbox', { name: 'Full name' }), {
+  const dialog = screen.getByRole('dialog', { name: 'Add client' })
+  fireEvent.change(within(dialog).getByRole('textbox', { name: 'Full name' }), {
     target: { value: name },
   })
-  fireEvent.click(screen.getByRole('button', { name: 'Review client' }))
-  await screen.findByRole('button', { name: 'Create client' })
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Add client' }))
   await waitFor(() =>
-    expect(screen.getByRole('button', { name: 'Create client' })).toBeEnabled(),
+    expect(service.saveClient).toHaveBeenCalled(),
   )
 }
 
@@ -157,19 +157,20 @@ describe('Clients workflow', () => {
       await screen.findByText('Your client book starts here'),
     ).toBeVisible()
   })
-  it('validates before checking duplicates', async () => {
+  it('validates before submitting to the backend', async () => {
     harness()
     fireEvent.click(screen.getByRole('button', { name: /Add client/i }))
-    fireEvent.click(screen.getByRole('button', { name: 'Review client' }))
+    const dialog = screen.getByRole('dialog', { name: 'Add client' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add client' }))
     expect(
       await screen.findByText('Enter the client’s full name.'),
     ).toBeVisible()
+    expect(service.saveClient).not.toHaveBeenCalled()
     expect(service.findDuplicates).not.toHaveBeenCalled()
   })
   it('creates a record with blank contacts as null and opens its details', async () => {
     harness()
-    await reviewNew('  Ana Cruz  ')
-    fireEvent.click(screen.getByRole('button', { name: 'Create client' }))
+    await submitNew('  Ana Cruz  ')
     expect(
       await screen.findByRole('dialog', { name: 'Client details' }),
     ).toBeVisible()
@@ -179,67 +180,36 @@ describe('Clients workflow', () => {
     )
     expect(await screen.findByText('No transactions found.')).toBeVisible()
   })
-  it('shows duplicates and uses an existing record without writing', async () => {
-    vi.mocked(service.findDuplicates).mockResolvedValue({
-      rows: [client],
-      count: 1,
-    })
-    harness()
-    fireEvent.click(screen.getByRole('button', { name: /Add client/i }))
-    fireEvent.change(screen.getByRole('textbox', { name: 'Full name' }), {
-      target: { value: 'Ana Cruz' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Review client' }))
-    fireEvent.click(
-      await screen.findByRole('button', {
-        name: 'Use existing client Ana Cruz',
-      }),
+  it('shows the backend duplicate error without a review step', async () => {
+    vi.mocked(service.saveClient).mockRejectedValueOnce(
+      new Error('A client with the same name, email, or phone number already exists.'),
     )
+    harness()
+    await submitNew('Ana Cruz')
     expect(
-      await screen.findByRole('dialog', { name: 'Client details' }),
+      await screen.findByText(
+        'A client with the same name, email, or phone number already exists.',
+      ),
     ).toBeVisible()
-    expect(service.saveClient).not.toHaveBeenCalled()
-  })
-  it('allows explicit separate registration despite duplicates', async () => {
-    vi.mocked(service.findDuplicates).mockResolvedValue({
-      rows: [client],
-      count: 1,
-    })
-    harness()
-    fireEvent.click(screen.getByRole('button', { name: /Add client/i }))
-    fireEvent.change(screen.getByRole('textbox', { name: 'Full name' }), {
-      target: { value: 'Ana Cruz' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Review client' }))
-    fireEvent.click(
-      await screen.findByRole('button', { name: 'Create separate client' }),
+    expect(screen.queryByText('Possible matching clients')).not.toBeInTheDocument()
+    expect(service.findDuplicates).not.toHaveBeenCalled()
+    expect(screen.getByRole('textbox', { name: 'Full name' })).toHaveValue(
+      'Ana Cruz',
     )
-    await waitFor(() => expect(service.saveClient).toHaveBeenCalledTimes(1))
   })
-  it('allows continuing after a failed duplicate check and preserves input after a failed save', async () => {
-    vi.mocked(service.findDuplicates).mockRejectedValue(
-      new Error('Check failed'),
-    )
+  it('preserves input after a failed backend save', async () => {
     vi.mocked(service.saveClient).mockRejectedValueOnce(
       new Error('Could not save this client.'),
     )
     harness()
-    fireEvent.click(screen.getByRole('button', { name: /Add client/i }))
-    fireEvent.change(screen.getByRole('textbox', { name: 'Full name' }), {
-      target: { value: 'Ana' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Review client' }))
-    fireEvent.click(
-      await screen.findByRole('button', { name: 'Save without checking' }),
-    )
+    await submitNew('Ana')
     expect(await screen.findByText('Could not save this client.')).toBeVisible()
     expect(screen.getByRole('textbox', { name: 'Full name' })).toHaveValue(
       'Ana',
     )
-    fireEvent.click(screen.getByRole('button', { name: 'Back to editing' }))
     expect(screen.getByRole('textbox', { name: 'Full name' })).toBeEnabled()
   })
-  it('edits only the selected client and excludes it from duplicate matching', async () => {
+  it('submits an edit directly to the backend', async () => {
     harness()
     fireEvent.click(
       await screen.findByRole('button', { name: 'Open Ana Cruz details' }),
@@ -248,12 +218,6 @@ describe('Clients workflow', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Full name' }), {
       target: { value: 'Ana Reyes' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Review changes' }))
-    await waitFor(() =>
-      expect(
-        screen.getByRole('button', { name: 'Save changes' }),
-      ).toBeEnabled(),
-    )
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
     await waitFor(() =>
       expect(service.saveClient).toHaveBeenCalledWith(
@@ -261,11 +225,28 @@ describe('Clients workflow', () => {
         client.id,
       ),
     )
-    expect(service.findDuplicates).toHaveBeenCalledWith(
-      expect.objectContaining({ full_name: 'Ana Reyes' }),
-      client.id,
-      0,
-      expect.any(AbortSignal),
+    expect(service.findDuplicates).not.toHaveBeenCalled()
+  })
+  it('preserves an edit when the backend reports a duplicate', async () => {
+    vi.mocked(service.saveClient).mockRejectedValueOnce(
+      new Error('A client with the same name, email, or phone number already exists.'),
+    )
+    harness()
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Open Ana Cruz details' }),
+    )
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit client' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Full name' }), {
+      target: { value: 'Existing Client' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+    expect(
+      await screen.findByText(
+        'A client with the same name, email, or phone number already exists.',
+      ),
+    ).toBeVisible()
+    expect(screen.getByRole('textbox', { name: 'Full name' })).toHaveValue(
+      'Existing Client',
     )
   })
   it('renders snapshot transaction details, exact totals, and recorded payments', async () => {
@@ -331,8 +312,17 @@ describe('Clients workflow', () => {
       screen.getByRole('dialog'),
       new Event('cancel', { cancelable: true }),
     )
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(opener).toHaveFocus()
+  })
+  it('closes the client drawer when its backdrop is selected', async () => {
+    harness()
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Open Ana Cruz details' }),
+    )
+    const dialog = await screen.findByRole('dialog', { name: 'Client details' })
+    fireEvent.pointerDown(dialog, { clientX: 1, clientY: 1 })
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
   it('prevents repeated saves and closing while a save is pending', async () => {
     let finish!: (value: Client) => void
@@ -342,15 +332,14 @@ describe('Clients workflow', () => {
       }),
     )
     harness()
-    await reviewNew()
-    fireEvent.click(screen.getByRole('button', { name: 'Create client' }))
+    await submitNew()
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Saving…' })).toBeDisabled(),
+      expect(screen.getByRole('button', { name: 'Adding…' })).toBeDisabled(),
     )
     expect(
       screen.getByRole('button', { name: 'Close Add client' }),
     ).toBeDisabled()
-    fireEvent.click(screen.getByRole('button', { name: 'Saving…' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Adding…' }))
     expect(service.saveClient).toHaveBeenCalledTimes(1)
     await act(async () => finish(client))
   })
@@ -363,18 +352,12 @@ describe('Clients workflow', () => {
     )
     const saved = vi.fn()
     const view = harness(
-      <ClientForm onSaved={saved} onCancel={vi.fn()} onUseExisting={vi.fn()} />,
+      <ClientForm onSaved={saved} onCancel={vi.fn()} />,
     )
     fireEvent.change(screen.getByRole('textbox', { name: 'Full name' }), {
       target: { value: 'New Client' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Review client' }))
-    await waitFor(() =>
-      expect(
-        screen.getByRole('button', { name: 'Create client' }),
-      ).toBeEnabled(),
-    )
-    fireEvent.click(screen.getByRole('button', { name: 'Create client' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add client' }))
     await waitFor(() => expect(service.saveClient).toHaveBeenCalled())
     const invalidate = vi.spyOn(view.cache, 'invalidateQueries')
     view.unmount()

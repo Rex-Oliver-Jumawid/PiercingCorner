@@ -47,33 +47,36 @@ function DashboardWorkspace() {
 
   return (
     <section className={`dashboard-page ${featureView}`}>
-      <div className="flex flex-wrap items-center justify-end gap-3">
-        <button
-          type="button"
-          className={`${dashButton({ variant: 'primary' })} flex items-center gap-1.5`}
-          onClick={startSale}
-        >
-          <Plus className="size-4" />
-          <span>Add Transaction</span>
-        </button>
-      </div>
-
-      <article className={tablePanel}>
-        <div className="flex items-center justify-between border-b border-dashed border-[#dab08f] bg-[#fffaf0] p-3.5">
-          <label className={`${dashField} min-w-[280px] flex-1 max-w-[480px]`}>
-            <span className="sr-only">Search transactions</span>
-            <span className="relative block">
-              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-[#84685e]" />
-              <input
-                className="!pl-9"
-                type="search"
-                value={search}
-                placeholder="Reference, client, item, staff, or status"
-                onChange={(event) => setSearch(event.target.value)}
-              />
-            </span>
-          </label>
-        </div>
+      <article className={`${tablePanel} dashboard-transaction-panel`}>
+        <header className="dashboard-transaction-head">
+          <div>
+            <h2>Today&apos;s transactions</h2>
+            <p>Operational workspace for Owner and Staff</p>
+          </div>
+          <div className="dashboard-transaction-actions">
+            <label className={`${dashField} dashboard-transaction-search`}>
+              <span className="sr-only">Search transactions</span>
+              <span className="relative block">
+                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-[#84685e]" />
+                <input
+                  className="!pl-9"
+                  type="search"
+                  value={search}
+                  placeholder="Search transactions..."
+                  onChange={(event) => setSearch(event.target.value)}
+                />
+              </span>
+            </label>
+            <button
+              type="button"
+              className={`${dashButton({ variant: 'primary' })} dashboard-add-transaction`}
+              onClick={startSale}
+            >
+              <Plus aria-hidden="true" className="size-4" />
+              <span>Add Transaction</span>
+            </button>
+          </div>
+        </header>
 
         {query.isPending ? <p role="status" className="dashboard-message">Loading today’s transactions…</p> : null}
         {query.isError ? (
@@ -87,7 +90,7 @@ function DashboardWorkspace() {
 
         {query.data ? (
           query.data.length ? (
-            <div className="overflow-x-auto">
+            <div className="dashboard-transaction-table">
               <table aria-label="Today's transactions dashboard">
                 <thead>
                   <tr>
@@ -103,7 +106,7 @@ function DashboardWorkspace() {
                       key={transaction.id}
                       role="button"
                       tabIndex={0}
-                      className="cursor-pointer hover:bg-[#fff1cf] focus:bg-[#f7dfb3] focus:outline-2 focus:-outline-offset-2 focus:outline-[#d66335]"
+                      className="dashboard-transaction-row"
                       aria-label={`Open transaction ${transaction.reference_code} for ${transaction.client_name}`}
                       onClick={() => setSelectedId(transaction.id)}
                       onKeyDown={(event) => {
@@ -114,18 +117,23 @@ function DashboardWorkspace() {
                       }}
                     >
                       <td>
-                        <strong className="block text-[#3b2923]">{formatManilaTime(transaction.created_at)}</strong>
-                        <small className="text-[8px] text-[#84685e]">{transaction.reference_code}</small>
+                        <strong className="dashboard-cell-main">{formatManilaTime(transaction.created_at)}</strong>
+                        <small className="dashboard-cell-sub">{transaction.reference_code}</small>
                       </td>
                       <td>
-                        <strong className="block text-[#3b2923]">{transaction.client_name}</strong>
-                        <small className="text-[8px] text-[#84685e]">
-                          {transaction.items.map((item) => item.name).join(' · ') || 'No items'}
-                        </small>
+                        <div className="dashboard-customer-cell">
+                          <span aria-hidden="true" className="dashboard-avatar">{transaction.client_name.slice(0, 1)}</span>
+                          <span className="min-w-0">
+                            <strong className="dashboard-cell-main">{transaction.client_name}</strong>
+                            <small className="dashboard-cell-sub">
+                              {transaction.items.map((item) => item.name).join(' · ') || 'No items'}
+                            </small>
+                          </span>
+                        </div>
                       </td>
                       <td>
-                        <strong className="block text-[#3b2923]">{transaction.recorded_by_name}</strong>
-                        <small className="text-[8px] text-[#84685e]">{formatMoney(transaction.total)}</small>
+                        <strong className="dashboard-cell-main">{transaction.recorded_by_name}</strong>
+                        <small className="dashboard-cell-sub">{formatMoney(transaction.total)}</small>
                       </td>
                       <td>
                         <span className={statusClasses(transaction.status)}>

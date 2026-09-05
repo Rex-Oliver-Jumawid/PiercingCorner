@@ -47,6 +47,6 @@ No schema or RLS migration was needed because the existing `services` and
 - Targeted Studio model, service-boundary, and component tests pass.
 - `npm run lint`, `npm run build`, `npm test`, and `git diff --check` pass.
 
-Transaction creation/finalization, piercer profiles, service qualifications,
-stations, availability, waiver files, and other later-phase Studio capabilities
-remain deferred.
+Service qualifications, availability, and Studio resource administration remain
+deferred. Active piercer profiles and stations are now modeled for Dashboard
+service assignments.

@@ -10,16 +10,5 @@
 }
 
 .sale-detail-dialog {
-  margin: 0 0 0 auto;
-  border-width: 0 0 0 2px;
-  border-radius: 0;
-  box-shadow: -7px 0 0 #3b2923;
-  height: 100dvh;
-  max-height: 100dvh;
   outline: none;
-}
-
-.sale-detail-dialog::backdrop {
-  background: #2d1812a6;
-  backdrop-filter: blur(4px);
 }

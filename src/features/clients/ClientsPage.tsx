@@ -44,9 +44,9 @@ function ClientsWorkspace() {
 
   return (
     <section className={`clients-page ${featureView}`}>
-      <div className="flex flex-wrap items-center justify-between gap-3 max-[640px]:flex-col max-[640px]:items-stretch">
+      <div className="clients-toolbar">
         <label className={`${dashField} min-w-[260px] flex-1`}>
-          <span className="sr-only">Search clients</span>
+          <span>Search clients</span>
           <span className="relative block">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-[#84685e]" />
             <input
@@ -67,6 +67,9 @@ function ClientsWorkspace() {
           <span>Add client</span>
         </button>
       </div>
+      <p className="clients-help">
+        Select a client to review contact details and transaction history.
+      </p>
 
       {query.isPending ? <p role="status" className="text-xs text-studio-muted">Loading clients…</p> : null}
       {query.isError ? (
@@ -166,7 +169,6 @@ function ClientsWorkspace() {
         >
           <ClientForm
             onSaved={(client) => select(client.id)}
-            onUseExisting={select}
             onCancel={() => setAdding(false)}
           />
         </ClientDialog>
@@ -177,7 +179,6 @@ function ClientsWorkspace() {
           key={selected}
           id={selected}
           onClose={() => setSelected(null)}
-          onSelect={select}
         />
       ) : null}
     </section>

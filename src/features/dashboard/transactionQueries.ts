@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../auth/useAuth'
 import * as service from './transactionService'
 import type { CatalogKind } from './transactionModel'
+import type { StudioResourceOption } from './transactionModel'
 
 function useDashboardScope() {
   const { account } = useAuth()
@@ -31,6 +32,16 @@ export function useActiveCatalog(kind: CatalogKind) {
   return useQuery({
     queryKey: [...scope, 'catalog', kind],
     queryFn: ({ signal }) => service.listActiveCatalog(kind, signal),
+  })
+}
+
+export function useActiveStudioResources(kind: 'piercer' | 'station') {
+  const scope = useDashboardScope()
+  return useQuery({
+    queryKey: [...scope, 'studio-resources', kind],
+    queryFn: ({ signal }): Promise<StudioResourceOption[]> => kind === 'piercer'
+      ? service.listActivePiercers(signal)
+      : service.listActiveStations(signal),
   })
 }
 

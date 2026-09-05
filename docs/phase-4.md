@@ -22,13 +22,15 @@ Staff use the same Dashboard capability under the canonical route-access policy.
 - Staff can choose an existing client or enter a walk-in client. Walk-in details
   use the Phase 2 duplicate check before checkout.
 - Active services and products come from the shared catalog representation.
+- Service drafts require an active piercer and station. Both assignments are
+  validated and persisted atomically when the signed service transaction enters Pending.
 - A product-only sale proceeds to a single full payment and is committed through
   one atomic database function.
 - Any new sale containing a service stops at the Phase 5 consent-and-waiver
   handoff. No client, transaction, item, or payment is written at that boundary.
 
-Split/partial payments, refunds, appointments, piercer assignments, and stations
-remain outside Phase 4.
+Split/partial payments, refunds, appointments, service qualifications, and
+availability remain outside Phase 4.
 
 ## Atomic database boundaries
 

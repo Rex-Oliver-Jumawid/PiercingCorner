@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog'
+import { useRightSideDrawer } from '../../components/ui/useRightSideDrawer'
 import {
   useActiveCatalog,
   useDashboardMutation,
@@ -28,13 +30,12 @@ import type {
 } from './transactionModel'
 
 function useModal() {
-  const ref = useRef<HTMLDialogElement>(null)
+  const [dialog, setDialog] = useState<HTMLDialogElement | null>(null)
   useEffect(() => {
-    const current = ref.current
-    current?.showModal()
-    return () => current?.close()
-  }, [])
-  return ref
+    dialog?.showModal()
+    return () => dialog?.close()
+  }, [dialog])
+  return { dialog, setDialog }
 }
 
 export function TransactionDialog({
@@ -52,7 +53,6 @@ export function TransactionDialog({
     recoveredSignature?: Blob | null
   }) => void
 }) {
-  const dialog = useModal()
   const mutation = useDashboardMutation(
     ({ status }: { status: Exclude<TransactionStatus, 'completed'> }) =>
       updateTransactionStatus(transaction.id, status),
@@ -62,6 +62,15 @@ export function TransactionDialog({
   const hasServices = transaction.items.some((item) => item.item_type === 'service')
   const [waiverActionError, setWaiverActionError] = useState<string | null>(null)
   const [preparingWaiver, setPreparingWaiver] = useState(false)
+  const [confirmingCancellation, setConfirmingCancellation] = useState(false)
+  const {
+    dialog,
+    setDialog,
+    closing,
+    requestClose,
+    handleCancel,
+    handleBackdropPointerDown,
+  } = useRightSideDrawer(onClose, mutation.isPending || preparingWaiver)
   const waiver = useQuery({
     queryKey: ['dashboard', 'transaction-waiver', transaction.id],
     enabled: transaction.has_waiver,
@@ -123,14 +132,20 @@ export function TransactionDialog({
   }
 
   return (
-    <dialog ref={dialog} className="transaction-dialog transaction-drawer" aria-label="Transaction details">
+    <dialog
+      ref={setDialog}
+      className={`transaction-dialog right-side-drawer${closing ? ' is-closing' : ''}`}
+      aria-label="Transaction details"
+      onCancel={handleCancel}
+      onPointerDown={handleBackdropPointerDown}
+    >
       <header className="transaction-dialog-head">
         <div>
           <p className="dashboard-eyebrow">TRANSACTION DETAILS</p>
           <h2>{transaction.reference_code}</h2>
           <p>{formatManilaTime(transaction.created_at)} · Manila time</p>
         </div>
-        <button type="button" aria-label="Close transaction details" disabled={mutation.isPending} onClick={onClose}>×</button>
+        <button type="button" aria-label="Close transaction details" disabled={mutation.isPending || preparingWaiver} onClick={requestClose}>×</button>
       </header>
       <div className="transaction-dialog-body">
         <dl className="transaction-detail-grid">
@@ -189,9 +204,7 @@ export function TransactionDialog({
                 type="button"
                 className="dashboard-button danger"
                 disabled={mutation.isPending}
-                onClick={() => {
-                  if (window.confirm('Cancel this transaction?')) mutation.mutate({ status: 'cancelled' })
-                }}
+                onClick={() => setConfirmingCancellation(true)}
               >Cancel</button>
             </div>
             {hasServices && !transaction.has_waiver ? <p>A signed waiver is required before this transaction can be finalized.</p> : null}
@@ -201,6 +214,17 @@ export function TransactionDialog({
           </section>
         ) : <p className="sale-rule">This transaction is {transaction.status} and has no further actions.</p>}
       </div>
+      <ConfirmationDialog
+        open={confirmingCancellation}
+        title="Cancel this transaction?"
+        description="This transaction will be marked Cancelled and kept in the historical record. This action cannot be undone from the Dashboard."
+        confirmLabel="Cancel transaction"
+        cancelLabel="Keep transaction"
+        destructive
+        portalContainer={dialog}
+        onOpenChange={setConfirmingCancellation}
+        onConfirm={() => mutation.mutate({ status: 'cancelled' })}
+      />
     </dialog>
   )
 }
@@ -235,7 +259,7 @@ export function FinalizeDialog({
   onCompleted: () => void
   initialStep?: 'items' | 'payment'
 }) {
-  const dialog = useModal()
+  const { setDialog } = useModal()
   const services = useActiveCatalog('service')
   const products = useActiveCatalog('product')
   const [serviceIds, setServiceIds] = useState(() =>
@@ -300,7 +324,7 @@ export function FinalizeDialog({
   }
 
   return (
-    <dialog ref={dialog} className="transaction-dialog finalize-dialog" aria-label="Finalize transaction">
+    <dialog ref={setDialog} className="transaction-dialog finalize-dialog" aria-label="Finalize transaction">
       <header className="transaction-dialog-head">
         <div><p className="dashboard-eyebrow">FINALIZE TRANSACTION</p><h2>{step === 'items' ? 'Review & Add Items' : 'Complete Payment'}</h2></div>
         <button type="button" aria-label="Close finalize transaction" disabled={mutation.isPending} onClick={onBack}>×</button>

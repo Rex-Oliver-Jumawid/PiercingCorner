@@ -1,20 +1,18 @@
 import { useContext, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { PAGE_SIZE, validateClient } from './clientModel'
+import { validateClient } from './clientModel'
 import type { Client, ClientInput } from './clientModel'
-import { useDuplicates, useSaveClient } from './clientQueries'
-import { ClientError, Pagination } from './ClientDialog'
+import { useSaveClient } from './clientQueries'
+import { ClientError } from './ClientDialog'
 import { ClientDialogBusyContext } from './clientDialogContext'
 
 export function ClientForm({
   client,
   onSaved,
-  onUseExisting,
   onCancel,
 }: {
   client?: Client
   onSaved: (client: Client) => void
-  onUseExisting: (id: string) => void
   onCancel: () => void
 }) {
   const [draft, setDraft] = useState<ClientInput>(() => ({
@@ -25,9 +23,6 @@ export function ClientForm({
   const [errors, setErrors] = useState<
     Partial<Record<keyof ClientInput, string>>
   >({})
-  const [candidate, setCandidate] = useState<ClientInput | null>(null)
-  const [page, setPage] = useState(0)
-  const matches = useDuplicates(candidate, client?.id, page)
   const save = useSaveClient(onSaved)
   const setDialogBusy = useContext(ClientDialogBusyContext)
   useEffect(() => {
@@ -41,12 +36,11 @@ export function ClientForm({
     setErrors(validated.errors)
     if (Object.keys(validated.errors).length) return
     save.reset()
-    setPage(0)
-    setCandidate(validated.value)
+    save.mutate({ input: validated.value, id: client?.id })
   }
   return (
     <form onSubmit={submit} noValidate className="client-form">
-      <fieldset disabled={save.isPending || candidate !== null}>
+      <fieldset disabled={save.isPending}>
         {(['full_name', 'email', 'phone'] as const).map((field) => (
           <label key={field}>
             <span>
@@ -86,98 +80,6 @@ export function ClientForm({
           </label>
         ))}
       </fieldset>
-      {candidate ? (
-        <section
-          aria-label="Duplicate check"
-          className="client-duplicates"
-          aria-live="polite"
-        >
-          {matches.isPending ? (
-            <p role="status">Checking for matching clients…</p>
-          ) : null}
-          {matches.isError ? (
-            <ClientError
-              message="Could not check for matching clients. Retry, or save without checking."
-              retry={() => void matches.refetch()}
-            />
-          ) : null}
-          {matches.data && !matches.isError ? (
-            <>
-              <h3>
-                {matches.data.count
-                  ? 'Possible matching clients'
-                  : 'Ready to save'}
-              </h3>
-              <p>
-                {matches.data.count
-                  ? 'Use an existing record, or intentionally keep this client separate.'
-                  : 'No matching clients found. Confirm to save this record.'}
-              </p>
-              <ul>
-                {matches.data.rows.map((match) => (
-                  <li key={match.id}>
-                    <div>
-                      <strong>{match.full_name}</strong>
-                      <p>
-                        {match.email || 'No email'} ·{' '}
-                        {match.phone || 'No phone'}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      className="client-button"
-                      aria-label={`Use existing client ${match.full_name}`}
-                      disabled={save.isPending}
-                      onClick={() => onUseExisting(match.id)}
-                    >
-                      Use existing client
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              {matches.data.count > PAGE_SIZE ? (
-                <Pagination
-                  page={page}
-                  count={matches.data.count}
-                  onChange={setPage}
-                  disabled={save.isPending || matches.isFetching}
-                />
-              ) : null}
-            </>
-          ) : null}
-          <div className="client-actions">
-            <button
-              type="button"
-              className="client-button"
-              disabled={save.isPending}
-              onClick={() => {
-                setCandidate(null)
-                save.reset()
-              }}
-            >
-              Back to editing
-            </button>
-            <button
-              type="button"
-              className="client-button primary"
-              disabled={save.isPending || matches.isFetching}
-              onClick={() => save.mutate({ input: candidate, id: client?.id })}
-            >
-              {save.isPending
-                ? 'Saving…'
-                : matches.isError
-                  ? 'Save without checking'
-                  : matches.data?.count
-                    ? client
-                      ? 'Save anyway'
-                      : 'Create separate client'
-                    : client
-                      ? 'Save changes'
-                      : 'Create client'}
-            </button>
-          </div>
-        </section>
-      ) : null}
       {save.isError ? <ClientError message={save.error.message} /> : null}
       <div className="client-actions">
         <button
@@ -188,11 +90,19 @@ export function ClientForm({
         >
           Cancel
         </button>
-        {!candidate ? (
-          <button className="client-button primary" type="submit">
-            {client ? 'Review changes' : 'Review client'}
-          </button>
-        ) : null}
+        <button
+          className="client-button primary"
+          type="submit"
+          disabled={save.isPending}
+        >
+          {save.isPending
+            ? client
+              ? 'Saving…'
+              : 'Adding…'
+            : client
+              ? 'Save changes'
+              : 'Add client'}
+        </button>
       </div>
     </form>
   )

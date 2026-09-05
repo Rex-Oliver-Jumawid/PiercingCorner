@@ -14,12 +14,12 @@ TanStack Query, Supabase, and RLS boundaries.
 - Full name is required. Email and phone are optional; blank values save as
   `null`, and supplied emails are validated before any request is sent.
 - Owners and Staff can add and edit clients. Client deletion is not exposed.
-- New and edited records are checked for exact normalized matches. Names and
-  emails ignore surrounding whitespace and case; phone matching ignores
-  formatting characters without inferring country-code equivalence.
-- A match never blocks registration. Staff can use the existing client or
-  explicitly create/save a separate record. Records are never merged and the
-  database does not add uniqueness constraints to identity or contact fields.
+- New and edited records are submitted once through atomic database functions.
+  They check exact normalized name, email, and phone matches and only return a
+  duplicate error when another record matches. Names and emails ignore
+  surrounding whitespace and case; phone matching ignores formatting
+  characters without inferring country-code equivalence. Records are never
+  merged automatically.
 
 ## Details and transaction history
 
@@ -39,22 +39,25 @@ view, literal-search RPC, and duplicate-search RPC. Every interface runs as the
 authenticated caller and retains the underlying RLS policies. Anonymous and
 inactive callers have no access.
 
+Migration `20260905000800_client_creation.sql` adds the narrow `create_client`
+function used by the Clients page. It requires an active account, serializes the
+duplicate check with creation, and returns a safe duplicate failure without
+exposing elevated credentials to the browser.
+
+Migration `20260905000900_client_updates.sql` applies the same boundary to edits
+through `update_client`, excluding only the record being changed from matching.
+
 Query keys include the current account ID and role. Identity changes remount the
 Clients workspace, and late mutations cannot populate or invalidate another
 identity's cache.
 
 ## Verification
 
-- `npm run lint`, `npm run build`, and all 75 frontend tests pass.
+- `npm run lint`, `npm run build`, and the frontend test suite pass.
 - The focused Clients SQL suite and the existing RLS suite pass against local
   Supabase; both roll back their fixtures.
-- Local Owner walkthrough passed: create, duplicate warning, select existing,
-  edit, reload persistence, and client details/history empty state.
-- Local Staff walkthrough passed with only Dashboard and Clients navigation.
-- Local inactive-account walkthrough passed and remained on Login with the safe
-  unavailable/inactive message.
-- Browser inspection found no runtime errors. The local walkthrough client was
-  removed after verification.
+- Focused client coverage verifies direct creation and editing, backend duplicate
+  rejection, identity isolation, and read-only transaction history.
 
 The authenticated application shell remains the existing temporary Phase 1A
 shell. Catalog management, sale recording/finalization, waiver files, and client

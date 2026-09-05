@@ -120,6 +120,30 @@ export type Database = {
           },
         ]
       }
+      piercer_profiles: {
+        Row: {
+          active: boolean
+          created_at: string
+          display_name: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          display_name: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          display_name?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           active: boolean
@@ -207,6 +231,30 @@ export type Database = {
         }
         Relationships: []
       }
+      stations: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       transaction_items: {
         Row: {
           created_at: string
@@ -273,7 +321,9 @@ export type Database = {
           created_at: string
           created_by: string
           id: string
+          piercer_profile_id: string | null
           reference_code: string | null
+          station_id: string | null
           status: Database["public"]["Enums"]["transaction_status"]
           updated_at: string
         }
@@ -284,7 +334,9 @@ export type Database = {
           created_at?: string
           created_by?: string
           id?: string
+          piercer_profile_id?: string | null
           reference_code?: string | null
+          station_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
           updated_at?: string
         }
@@ -295,7 +347,9 @@ export type Database = {
           created_at?: string
           created_by?: string
           id?: string
+          piercer_profile_id?: string | null
           reference_code?: string | null
+          station_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
           updated_at?: string
         }
@@ -319,6 +373,20 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "staff_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_piercer_profile_id_fkey"
+            columns: ["piercer_profile_id"]
+            isOneToOne: false
+            referencedRelation: "piercer_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_station_id_fkey"
+            columns: ["station_id"]
+            isOneToOne: false
+            referencedRelation: "stations"
             referencedColumns: ["id"]
           },
         ]
@@ -499,6 +567,28 @@ export type Database = {
           template_version: number
           total: number
         }[]
+      }
+      create_client: {
+        Args: {
+          candidate_email?: string
+          candidate_name: string
+          candidate_phone?: string
+        }
+        Returns: {
+          created_at: string
+          created_by: string
+          email: string | null
+          full_name: string
+          id: string
+          phone: string | null
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "clients"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       current_waiver_template_id: { Args: never; Returns: string }
       finalize_signed_waiver: {
@@ -725,6 +815,29 @@ export type Database = {
           total: number
           updated_at: string
         }[]
+      }
+      update_client: {
+        Args: {
+          candidate_email?: string
+          candidate_name: string
+          candidate_phone?: string
+          target_client_id: string
+        }
+        Returns: {
+          created_at: string
+          created_by: string
+          email: string | null
+          full_name: string
+          id: string
+          phone: string | null
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "clients"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
     }
     Enums: {

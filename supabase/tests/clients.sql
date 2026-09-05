@@ -23,7 +23,7 @@ from unnest(array['pending','ongoing','completed','cancelled']) status;
 
 set local role authenticated;
 select set_config('request.jwt.claim.role', 'authenticated', true);
-do $$ declare actor text; changed integer; begin
+do $$ declare actor text; changed integer; target_id uuid; begin
   foreach actor in array array['20000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000002'] loop
     perform set_config('request.jwt.claim.sub', actor, true);
     perform pg_temp.assert_true((select transaction_count = 4 and last_activity = '2026-09-05T10:00:00Z' from public.client_summaries where id = '20000000-0000-0000-0000-000000000101'), 'Both roles see all statuses and latest activity');
@@ -35,6 +35,19 @@ do $$ declare actor text; changed integer; begin
     perform pg_temp.assert_true((select count(*) = 0 from public.find_client_duplicates('Different', null, '09171234567')), 'Country codes are not inferred');
     perform pg_temp.assert_true((select count(*) = 0 from public.find_client_duplicates('Different', '', '()')), 'Blank contacts never match');
     perform pg_temp.assert_true((select count(*) = 0 from public.find_client_duplicates('Client %_*()," Test', null, null, '20000000-0000-0000-0000-000000000101')), 'Edit excludes self');
+    perform * from public.create_client('Created ' || actor, 'created-' || actor || '@example.test', null);
+    perform pg_temp.assert_true((select count(*) = 1 from public.clients where full_name = 'Created ' || actor), 'Active roles can create a unique client');
+    select id into target_id from public.clients where full_name = 'Created ' || actor;
+    perform * from public.update_client(target_id, 'Updated ' || actor, 'updated-' || actor || '@example.test', null);
+    perform pg_temp.assert_true((select count(*) = 1 from public.clients where id = target_id and full_name = 'Updated ' || actor), 'Active roles can directly update a unique client');
+    begin
+      perform * from public.create_client(' updated ' || actor || ' ', null, null);
+      raise exception 'Duplicate client creation unexpectedly succeeded';
+    exception when unique_violation then null; end;
+    begin
+      perform * from public.update_client(target_id, 'Different', ' ANA@EXAMPLE.TEST ', null);
+      raise exception 'Duplicate client update unexpectedly succeeded';
+    exception when unique_violation then null; end;
     insert into public.clients (full_name, email, phone) values ('Duplicate allowed', 'shared@example.test', '123'), ('Duplicate allowed', 'shared@example.test', '123');
     update public.clients set phone = null where id = '20000000-0000-0000-0000-000000000102';
     get diagnostics changed = row_count;
@@ -51,6 +64,14 @@ select pg_temp.assert_true((select count(*) = 0 from public.search_clients('')),
 select pg_temp.assert_true((select count(*) = 0 from public.find_client_duplicates('Duplicate allowed')), 'Inactive cannot find duplicates');
 do $$ begin
   begin
+    perform * from public.create_client('Inactive RPC write');
+    raise exception 'Inactive client RPC unexpectedly succeeded';
+  exception when insufficient_privilege then null; end;
+  begin
+    perform * from public.update_client('20000000-0000-0000-0000-000000000101', 'Inactive RPC update');
+    raise exception 'Inactive client update RPC unexpectedly succeeded';
+  exception when insufficient_privilege then null; end;
+  begin
     insert into public.clients (full_name) values ('Inactive write');
     raise exception 'Inactive insert unexpectedly succeeded';
   exception when insufficient_privilege then null; end;
@@ -59,5 +80,7 @@ reset role;
 select pg_temp.assert_true(not has_table_privilege('anon', 'public.client_summaries', 'SELECT'), 'Anonymous summary grant denied');
 select pg_temp.assert_true(not has_function_privilege('anon', 'public.search_clients(text)', 'EXECUTE'), 'Anonymous search grant denied');
 select pg_temp.assert_true(not has_function_privilege('anon', 'public.find_client_duplicates(text,text,text,uuid)', 'EXECUTE'), 'Anonymous duplicate grant denied');
+select pg_temp.assert_true(not has_function_privilege('anon', 'public.create_client(text,text,text)', 'EXECUTE'), 'Anonymous client creation grant denied');
+select pg_temp.assert_true(not has_function_privilege('anon', 'public.update_client(uuid,text,text,text)', 'EXECUTE'), 'Anonymous client update grant denied');
 select pg_temp.assert_true(not has_table_privilege('authenticated', 'public.client_summaries', 'UPDATE'), 'Summary writes denied');
 rollback;

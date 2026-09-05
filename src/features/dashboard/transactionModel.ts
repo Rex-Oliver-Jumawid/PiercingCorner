@@ -38,6 +38,11 @@ export interface ClientOption {
   phone: string | null
 }
 
+export interface StudioResourceOption {
+  id: string
+  name: string
+}
+
 export interface NewClientDraft {
   first_name: string
   last_name: string

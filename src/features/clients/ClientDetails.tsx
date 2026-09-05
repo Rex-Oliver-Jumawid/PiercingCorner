@@ -195,11 +195,9 @@ function ClientHistory({ clientId }: { clientId: string }) {
 export function ClientDetails({
   id,
   onClose,
-  onSelect,
 }: {
   id: string
   onClose: () => void
-  onSelect: (id: string) => void
 }) {
   const query = useClient(id)
   const [editing, setEditing] = useState(false)
@@ -252,7 +250,6 @@ export function ClientDetails({
                 setEditing(false)
                 setSaved(true)
               }}
-              onUseExisting={onSelect}
               onCancel={() => setEditing(false)}
             />
           ) : (
