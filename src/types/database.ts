@@ -947,6 +947,18 @@ export type Database = {
           name: string
         }[]
       }
+      get_base_studio_hours: {
+        Args: { target_date: string }
+        Returns: {
+          closes_at: string
+          is_open: boolean
+          opens_at: string
+          schedule_date: string
+          source: string
+          temporary_schedule_id: string
+          weekday: number
+        }[]
+      }
       get_completed_sale: {
         Args: { target_transaction_id: string }
         Returns: {
@@ -964,6 +976,20 @@ export type Database = {
           recorded_by_name: string
           reference_code: string
           total: number
+        }[]
+      }
+      get_effective_studio_hours: {
+        Args: { target_date: string }
+        Returns: {
+          closes_at: string
+          exception_id: string
+          exception_type: Database["public"]["Enums"]["studio_exception_type"]
+          is_open: boolean
+          opens_at: string
+          schedule_date: string
+          source: string
+          temporary_schedule_id: string
+          weekday: number
         }[]
       }
       get_owner_overview: {

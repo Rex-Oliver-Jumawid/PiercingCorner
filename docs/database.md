@@ -39,7 +39,7 @@ it leaves no sample accounts or business records in the local database.
 | `studio_temporary_hours` | The seven explicit open or closed weekday rows belonging to each Temporary Studio Schedule. |
 | `piercer_service_qualifications` | Services each Studio piercer may be assigned to perform. |
 | `piercer_availability` | One persistent Recurring Piercer Availability interval per piercer and weekday. |
-| `studio_exceptions` | One dated Studio Exception per date: an all-day closure or a reduced-hours override of the recurring window. |
+| `studio_exceptions` | One dated Studio Exception per date: an all-day closure or a reduced-hours override of the applicable base window. |
 | `transactions` | Operational Dashboard transaction with immutable client snapshot and first completion timestamp; not an appointment or draft sale. |
 | `transaction_items` | Service/product lines with name and price snapshots. |
 | `payments` | Recorded payment facts; never gateway credentials. |
@@ -149,16 +149,39 @@ later reviewed workflow.
 
 ## Current Studio scheduling
 
-`get_assignable_piercers(uuid[])` returns active profiles qualified for every
-selected active service only when the PostgreSQL server clock falls within the
-Manila Studio Hours, the profile's recurring availability, and any applicable
-dated exception. It includes an active default station when one exists.
+`get_assignable_piercers(uuid[])` returns active profiles qualified for every selected active service when the PostgreSQL server clock falls within Effective Studio Hours and recurring Piercer Availability in `Asia/Manila`.
+It includes an active default station when one exists and independently requires an active application account.
 
-`piercer_is_assignable(uuid, uuid[], timestamptz)` is the underlying checked
-predicate used by that RPC and by the signed service-transaction boundary.
-It currently joins Recurring Studio Hours and Recurring Piercer Availability
-directly, then applies the dated Studio Exception for the Manila date.
-It is not an Effective Studio Hours or Effective Piercer Availability resolver.
+`piercer_is_assignable(uuid, uuid[], timestamptz)` is the internal security-definer predicate used by that RPC and signed service-transaction acceptance.
+It converts the timestamp to a Manila date/time and consumes `get_effective_studio_hours` rather than joining recurring hours and exceptions directly.
+It preserves active-profile, active-service, qualification, and recurring Piercer Availability checks, with inclusive opening and exclusive closing times.
+Direct execution is revoked from PUBLIC, `anon`, and `authenticated`, including Supabase's explicit default role grants.
+
+### Effective Studio Hours resolver contract
+
+`get_base_studio_hours(target_date date)` resolves `Temporary Studio Schedule > Recurring Studio Hours` using the inclusive `daterange` GiST lookup and indexed weekday keys.
+`get_effective_studio_hours(target_date date)` applies `Studio Exception > Base Studio Hours` and is the canonical operating-window resolver.
+Both are stable security-invoker functions with empty `search_path`, schema-qualified reads, and execution granted to `authenticated` only among browser roles.
+Table RLS continues to filter direct reads; checked definer callers use their existing operational authorization boundary.
+Neither resolver writes data or performs expiry cleanup.
+
+| Returned field | Contract |
+| --- | --- |
+| `schedule_date` | Requested finite, non-null date; invalid input raises `22023`. |
+| `weekday` | ISO weekday `smallint`, Monday `1` through Sunday `7`. |
+| `is_open` | Whether the resolved Studio interval is open. |
+| `opens_at`, `closes_at` | `time` values, both null when closed. |
+| `source` | Fixed text values `recurring`, `temporary`, or `exception`; base helper returns only the first two. |
+| `temporary_schedule_id` | Applicable temporary schedule UUID, nullable, retained beneath an exception. |
+| `exception_id`, `exception_type` | Effective resolver only; nullable UUID and existing `studio_exception_type` enum. |
+
+The generated Supabase RPC types do not express nullable table-return fields or narrow the text source union; future UI consumers must handle the documented null values and source contract explicitly.
+The date itself is timezone-neutral; timestamp callers must derive it with `Asia/Manila`.
+A missing recurring row or selected temporary weekday resolves closed without invented hours, retaining the selected source.
+Inactive or missing application accounts see a closed recurring result without identifiers because RLS hides all underlying rows.
+A closed exception always resolves closed with source `exception`.
+`validate_studio_exception` uses only the base helper to require reduced hours inside an already-open temporary or recurring window, so validation cannot recurse through the exception being saved.
+If later base configuration changes invalidate an existing reduced exception, effective resolution fails closed with source `exception` until corrected; it never silently reopens or clamps the interval.
 
 The database table name remains `studio_hours`; it is the persistence boundary for Recurring Studio Hours, not a persisted Effective Studio Hours result.
 
@@ -184,15 +207,22 @@ persisted transaction can finish payment recovery after hours. A transaction-ite
 trigger checks newly inserted assigned service lines against current qualifications,
 while unchanged legacy/open lines remain completable.
 
-Owners manage all Studio configuration under RLS. Availability must fit within
-open Studio Hours, conflicting hour reductions are rejected, and reduced-hours
-exceptions must narrow the normal window. Calendar remains a retained placeholder;
-transactions are still operational records rather than appointments.
+Owners manage Studio configuration under RLS and the checked temporary mutation RPC.
+`validate_piercer_availability` and `prevent_conflicting_studio_hours` still enforce recurring-to-recurring relationships, independently of temporary schedules.
+Neither `studio_hours` nor `piercer_availability` is rewritten by temporary configuration or resolution.
+Dashboard and waiver acceptance now consume Effective Studio Hours through the predicate; Overview readiness still reads recurring configuration only.
+No temporary Piercer schedule tables, availability modes, Effective Piercer Availability resolver, or Configure Hours UI exist yet.
+Calendar remains a placeholder and transactions remain operational records rather than appointments.
+See [Studio scheduling](studio-scheduling.md) for implemented behavior and deferred phases.
 
-Temporary Studio Schedule persistence now exists, but no temporary Piercer schedule tables, availability-mode columns, or effective-schedule resolver functions exist yet.
-Temporary schedules do not alter `studio_hours`, and `validate_piercer_availability`, `prevent_conflicting_studio_hours`, `validate_studio_exception`, `piercer_is_assignable`, and `get_assignable_piercers` intentionally continue to use Recurring Studio Hours directly.
-Dashboard assignment, waiver acceptance, Studio Exception validation, and Overview readiness therefore do not consume Temporary Studio Schedules in Phase 2.
-Their future precedence and integration rules are defined in [Studio scheduling](studio-scheduling.md).
+Focused scheduling verification uses the existing Studio suite plus deterministic Phase 3 resolver coverage:
+
+```bash
+docker exec -i supabase_db_PiercingCorner psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/studio.sql
+docker exec -i supabase_db_PiercingCorner psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/effective_studio_hours.sql
+```
+
+Both suites roll back their fixtures; the canonical `supabase/tests/rls.sql` suite remains required.
 
 ## Phase 2 client read interfaces
 
