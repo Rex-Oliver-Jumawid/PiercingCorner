@@ -1075,6 +1075,24 @@ export type Database = {
           total: number
         }[]
       }
+      get_effective_piercer_availability: {
+        Args: { target_date: string; target_piercer_profile_id: string }
+        Returns: {
+          availability_date: string
+          ends_at: string
+          is_available: boolean
+          mode: string
+          piercer_profile_id: string
+          source: string
+          starts_at: string
+          studio_exception_id: string
+          studio_exception_type: Database["public"]["Enums"]["studio_exception_type"]
+          studio_source: string
+          studio_temporary_schedule_id: string
+          temporary_schedule_id: string
+          weekday: number
+        }[]
+      }
       get_effective_studio_hours: {
         Args: { target_date: string }
         Returns: {
