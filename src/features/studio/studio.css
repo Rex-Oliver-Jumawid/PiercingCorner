@@ -481,7 +481,7 @@
 }
 
 .catalog-search-wrap input,
-.catalog-form input:not([type='checkbox']),
+.catalog-form input:not([type='checkbox']):not([type='radio']),
 .catalog-form textarea {
   width: 100%;
   min-height: 40px;
@@ -507,7 +507,7 @@
 }
 
 .catalog-search-wrap input:focus,
-.catalog-form input:not([type='checkbox']):focus,
+.catalog-form input:not([type='checkbox']):not([type='radio']):focus,
 .catalog-form textarea:focus {
   border-color: var(--studio-orange);
   outline: 3px solid rgba(242, 106, 54, 0.25);

@@ -370,7 +370,9 @@ describe('Configure Piercer Schedule workflow', () => {
     harness()
     expect(await screen.findByText('Recurring schedule resumes Sep 21.')).toBeVisible()
     expect(screen.getByText('Upcoming temporary schedules')).toBeVisible()
-    fireEvent.click(screen.getAllByRole('button', { name: 'Edit temporary schedule' })[0])
+    const edit = screen.getByRole('button', { name: 'Edit temporary schedule for Ana Santos from Sep 10, 2026 to Sep 20, 2026' })
+    expect(edit).toHaveTextContent('Edit')
+    fireEvent.click(edit)
     const dialog = screen.getByRole('dialog', { name: 'Edit Temporary Piercer Schedule' })
     expect(dialog).toBeVisible()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save temporary schedule' }))
@@ -432,7 +434,7 @@ describe('Configure Studio Hours workflow', () => {
       }],
     }))
     harness()
-    fireEvent.click(await screen.findByRole('button', { name: 'Edit temporary schedule' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit temporary Studio schedule from Sep 20, 2026 to Sep 10, 2026' }))
     const dialog = screen.getByRole('dialog', { name: 'Edit Temporary Studio Hours' })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save temporary schedule' }))
 
@@ -464,7 +466,9 @@ describe('Configure Studio Hours workflow', () => {
       effectiveToday: { schedule_date: '2026-09-10', weekday: 4, is_open: true, opens_at: '12:00:00', closes_at: '18:00:00', source: 'temporary', temporary_schedule_id: 'schedule-1', exception_id: null, exception_type: null },
     }))
     harness()
-    fireEvent.click(await screen.findByRole('button', { name: 'Edit temporary schedule' }))
+    const edit = await screen.findByRole('button', { name: 'Edit temporary Studio schedule from Sep 10, 2026 to Sep 20, 2026' })
+    expect(edit).toHaveTextContent('Edit')
+    fireEvent.click(edit)
     const dialog = screen.getByRole('dialog', { name: 'Edit Temporary Studio Hours' })
     expect(within(dialog).getByRole('radio', { name: /Recurring/ })).toBeDisabled()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save temporary schedule' }))
@@ -541,7 +545,7 @@ describe('Configure Studio Hours workflow', () => {
         },
       }))
     harness()
-    fireEvent.click(await screen.findByRole('button', { name: 'Edit temporary schedule' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit temporary Studio schedule from Sep 10, 2026 to Sep 20, 2026' }))
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Edit Temporary Studio Hours' })).getByRole('button', { name: 'Save temporary schedule' }))
 
     expect(await screen.findByText('Sep 10, 2026 – Sep 22, 2026')).toBeVisible()
