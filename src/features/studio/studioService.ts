@@ -20,13 +20,13 @@ export async function getStudioConfiguration(signal: AbortSignal): Promise<Studi
     throw new Error('Unable to load Studio configuration. Please try again.')
   }
   return {
-    hours: hours.data ?? [], profiles: profiles.data ?? [], qualifications: qualifications.data ?? [],
+    recurringHours: hours.data ?? [], profiles: profiles.data ?? [], qualifications: qualifications.data ?? [],
     availability: availability.data ?? [], exceptions: exceptions.data ?? [],
     services: services.data ?? [], stations: stations.data ?? [],
   }
 }
 
-export async function saveStudioHour(input: { weekday: number; isOpen: boolean; opensAt: string; closesAt: string }) {
+export async function saveRecurringStudioHour(input: { weekday: number; isOpen: boolean; opensAt: string; closesAt: string }) {
   const { data, error } = await getSupabaseClient().from('studio_hours').update({
     is_open: input.isOpen,
     opens_at: input.isOpen ? input.opensAt : null,
@@ -95,4 +95,3 @@ export async function deleteStudioException(id: string) {
   const { error } = await getSupabaseClient().from('studio_exceptions').delete().eq('id', id)
   if (error) throw new Error('Could not remove this closure or exception. Please try again.')
 }
-

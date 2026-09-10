@@ -8,7 +8,11 @@ export const STUDIO_DAYS = [
   { value: 7, short: 'Sun', label: 'Sunday' },
 ] as const
 
-export interface StudioHour {
+/**
+ * The persistent weekly default from `studio_hours`. This is intentionally
+ * distinct from the future date-resolved Effective Studio Hours concept.
+ */
+export interface RecurringStudioHour {
   weekday: number
   is_open: boolean
   opens_at: string | null
@@ -56,7 +60,7 @@ export interface StudioException {
 }
 
 export interface StudioConfiguration {
-  hours: StudioHour[]
+  recurringHours: RecurringStudioHour[]
   profiles: PiercerProfile[]
   qualifications: PiercerQualification[]
   availability: PiercerAvailability[]

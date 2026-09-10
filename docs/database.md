@@ -158,6 +158,8 @@ It currently joins Recurring Studio Hours and Recurring Piercer Availability
 directly, then applies the dated Studio Exception for the Manila date.
 It is not an Effective Studio Hours or Effective Piercer Availability resolver.
 
+The database table name remains `studio_hours`; it is the persistence boundary for Recurring Studio Hours, not a persisted Effective Studio Hours result.
+
 `accept_new_service_waiver(...)` rechecks those rules immediately before creating
 the signed Pending service transaction. This check occurs once at creation so a
 persisted transaction can finish payment recovery after hours. A transaction-item

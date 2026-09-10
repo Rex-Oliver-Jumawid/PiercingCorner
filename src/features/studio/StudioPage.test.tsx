@@ -49,7 +49,7 @@ beforeEach(() => {
     kind === 'service' ? serviceEntry : productEntry,
   )
   vi.mocked(studioService.getStudioConfiguration).mockResolvedValue({
-    hours: [
+    recurringHours: [
       { weekday: 1, is_open: true, opens_at: '10:00:00', closes_at: '20:00:00' },
       { weekday: 7, is_open: false, opens_at: null, closes_at: null },
     ],
@@ -60,7 +60,7 @@ beforeEach(() => {
     services: [{ id: 'service-1', name: 'Lobe Piercing', active: true }, { id: 'service-2', name: 'Navel Piercing', active: true }],
     stations: [{ id: 'station-1', name: 'Station 1', active: true }],
   })
-  vi.mocked(studioService.saveStudioHour).mockResolvedValue({ weekday: 1, is_open: true, opens_at: '11:00:00', closes_at: '20:00:00' })
+  vi.mocked(studioService.saveRecurringStudioHour).mockResolvedValue({ weekday: 1, is_open: true, opens_at: '11:00:00', closes_at: '20:00:00' })
   vi.mocked(studioService.savePiercer).mockResolvedValue({ id: 'piercer-1', display_name: 'Ana Santos', active: true, default_station_id: 'station-1' })
   vi.mocked(studioService.replaceQualifications).mockResolvedValue()
   vi.mocked(studioService.saveAvailability).mockResolvedValue()
@@ -192,7 +192,7 @@ describe('Studio catalog workflow', () => {
     fireEvent.change(within(dialog).getByRole('spinbutton', { name: 'Hour' }), { target: { value: '11' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Apply' }))
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }))
-    await waitFor(() => expect(studioService.saveStudioHour).toHaveBeenCalledWith({ weekday: 1, isOpen: true, opensAt: '11:00', closesAt: '20:00' }, expect.anything()))
+    await waitFor(() => expect(studioService.saveRecurringStudioHour).toHaveBeenCalledWith({ weekday: 1, isOpen: true, opensAt: '11:00', closesAt: '20:00' }, expect.anything()))
   })
 
   it('replaces a profile qualification set atomically', async () => {

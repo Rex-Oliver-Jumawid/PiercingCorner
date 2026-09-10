@@ -19,6 +19,7 @@ Each row is either closed or has one opening and closing interval.
 These rows repeat indefinitely and do not expire at the end of a week.
 The Owner currently edits one weekday at a time from Studio.
 There is no bulk recurring-hours editor yet.
+At the application boundary, `RecurringStudioHour`, `StudioConfiguration.recurringHours`, and `saveRecurringStudioHour` name this persistent weekly default fallback explicitly. They do not resolve or represent Effective Studio Hours.
 
 ### Recurring Piercer Availability
 

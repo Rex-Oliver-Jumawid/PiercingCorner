@@ -13,15 +13,15 @@ import {
 } from './studioModel'
 import type {
   PiercerProfile,
+  RecurringStudioHour,
   StudioConfiguration,
   StudioException,
-  StudioHour,
 } from './studioModel'
 import type { CatalogEntry, CatalogKind } from './catalogModel'
 
 export type StudioEditor =
   | { mode: 'catalog'; kind: CatalogKind; entry?: CatalogEntry }
-  | { mode: 'hours'; hour: StudioHour }
+  | { mode: 'hours'; hour: RecurringStudioHour }
   | { mode: 'piercer'; profile?: PiercerProfile }
   | { mode: 'qualifications'; profile: PiercerProfile }
   | { mode: 'availability'; profile: PiercerProfile; weekday: number }
@@ -46,12 +46,12 @@ function EditorShell({ title, subtitle, busy, error, onClose, onSubmit, submitLa
   </dialog>
 }
 
-function HoursEditor({ hour, onClose }: { hour: StudioHour; onClose: () => void }) {
+function HoursEditor({ hour, onClose }: { hour: RecurringStudioHour; onClose: () => void }) {
   const [open, setOpen] = useState(hour.is_open)
   const [starts, setStarts] = useState(normalizeTime(hour.opens_at) || '10:00')
   const [ends, setEnds] = useState(normalizeTime(hour.closes_at) || '20:00')
   const [validation, setValidation] = useState<string | null>(null)
-  const mutation = useStudioMutation(service.saveStudioHour)
+  const mutation = useStudioMutation(service.saveRecurringStudioHour)
   const day = STUDIO_DAYS.find((item) => item.value === hour.weekday)!
   function submit(event: FormEvent) {
     event.preventDefault(); const error = open ? validateTimeRange(starts, ends) : null; setValidation(error)
@@ -101,7 +101,7 @@ function QualificationsEditor({ profile, configuration, onClose }: { profile: Pi
 
 function AvailabilityEditor({ profile, weekday, configuration, onClose }: { profile: PiercerProfile; weekday: number; configuration: StudioConfiguration; onClose: () => void }) {
   const existing = configuration.availability.find((item) => item.piercer_profile_id === profile.id && item.weekday === weekday)
-  const hours = configuration.hours.find((item) => item.weekday === weekday)
+  const hours = configuration.recurringHours.find((item) => item.weekday === weekday)
   const [day, setDay] = useState(weekday)
   const [available, setAvailable] = useState(!!existing)
   const [starts, setStarts] = useState(normalizeTime(existing?.starts_at ?? hours?.opens_at) || '10:00')
@@ -109,11 +109,11 @@ function AvailabilityEditor({ profile, weekday, configuration, onClose }: { prof
   const [validation, setValidation] = useState<string | null>(null)
   const mutation = useStudioMutation(service.saveAvailability)
   function chooseDay(next: number) {
-    setDay(next); const saved = configuration.availability.find((item) => item.piercer_profile_id === profile.id && item.weekday === next); const studioHour = configuration.hours.find((item) => item.weekday === next)
+    setDay(next); const saved = configuration.availability.find((item) => item.piercer_profile_id === profile.id && item.weekday === next); const studioHour = configuration.recurringHours.find((item) => item.weekday === next)
     setAvailable(!!saved); setStarts(normalizeTime(saved?.starts_at ?? studioHour?.opens_at) || '10:00'); setEnds(normalizeTime(saved?.ends_at ?? studioHour?.closes_at) || '20:00')
   }
   function submit(event: FormEvent) {
-    event.preventDefault(); const hour = configuration.hours.find((item) => item.weekday === day)
+    event.preventDefault(); const hour = configuration.recurringHours.find((item) => item.weekday === day)
     let error = available ? validateTimeRange(starts, ends) : null
     if (available && !hour?.is_open) error = 'This day is closed in Studio Hours.'
     if (available && hour?.is_open && (starts < normalizeTime(hour.opens_at) || ends > normalizeTime(hour.closes_at))) error = 'Availability must stay within the configured Studio Hours.'
@@ -160,7 +160,7 @@ export function StudioConfigurationView({ configuration, editor, setEditor }: { 
   const coverage = profile ? configuration.availability.filter((item) => item.piercer_profile_id === profile.id).length : 0
   const station = configuration.stations.find((item) => item.id === profile?.default_station_id)
   return <>
-    <section id="studio-hours" tabIndex={-1} className="studio-panel"><header className="studio-panel-head"><div><h3>Studio Hours</h3><p>Standard opening hours used across daily operations and availability.</p></div></header><div>{configuration.hours.map((hour) => { const day = STUDIO_DAYS.find((item) => item.value === hour.weekday)!; return <div className="studio-hours-row" key={hour.weekday}><strong>{day.short}</strong><span className={hour.is_open ? 'studio-open' : 'studio-closed'}>{hour.is_open ? 'OPEN' : 'CLOSED'}</span><span>{hour.is_open ? `${formatStudioTime(hour.opens_at)} — ${formatStudioTime(hour.closes_at)}` : 'Not accepting studio operations'}</span><button className="studio-row-edit" type="button" onClick={() => setEditor({ mode: 'hours', hour })}>Edit</button></div> })}</div></section>
+    <section id="studio-hours" tabIndex={-1} className="studio-panel"><header className="studio-panel-head"><div><h3>Studio Hours</h3><p>Recurring weekly opening hours used across daily operations and availability.</p></div></header><div>{configuration.recurringHours.map((hour) => { const day = STUDIO_DAYS.find((item) => item.value === hour.weekday)!; return <div className="studio-hours-row" key={hour.weekday}><strong>{day.short}</strong><span className={hour.is_open ? 'studio-open' : 'studio-closed'}>{hour.is_open ? 'OPEN' : 'CLOSED'}</span><span>{hour.is_open ? `${formatStudioTime(hour.opens_at)} — ${formatStudioTime(hour.closes_at)}` : 'Not accepting studio operations'}</span><button className="studio-row-edit" type="button" onClick={() => setEditor({ mode: 'hours', hour })}>Edit</button></div> })}</div></section>
     <section className="studio-panel"><header className="studio-panel-head"><div><h3>Piercer Profiles</h3><p>Manage Studio profiles and the services each piercer is qualified to offer.</p></div><button className="catalog-button primary" type="button" onClick={() => setEditor({ mode: 'piercer' })}>+ Add piercer</button></header>
       {configuration.profiles.length ? <><div className="studio-tabs">{configuration.profiles.map((item) => <button type="button" className={profile?.id === item.id ? 'active' : ''} key={item.id} onClick={() => setSelectedProfileId(item.id)}>{item.display_name}</button>)}</div>{profile ? <div className="studio-profile-layout"><article className="studio-profile-card"><div className="studio-profile-top"><span>{initials(profile.display_name)}</span><div><strong>{profile.display_name}</strong><small>Piercer profile · {profile.active ? 'Active' : 'Inactive'}</small></div><b className={profile.active ? 'studio-open' : 'studio-closed'}>{profile.active ? 'ACTIVE' : 'INACTIVE'}</b></div><div className="studio-profile-meta"><div><span>Default station</span><strong>{station?.name ?? 'Not assigned'}</strong></div><div><span>Weekly coverage</span><strong>{coverage} {coverage === 1 ? 'day' : 'days'}</strong></div></div><button className="studio-row-edit studio-profile-edit" type="button" onClick={() => setEditor({ mode: 'piercer', profile })}>Edit profile</button></article><article className="studio-profile-services"><div className="studio-services-head"><div><h4>Services offered</h4><p>Only selected services can be assigned to this piercer.</p></div><button className="studio-row-edit" type="button" onClick={() => setEditor({ mode: 'qualifications', profile })}>Edit services</button></div><div className="studio-service-chips">{qualifications.length ? qualifications.map((item) => { const qualified = configuration.services.find((serviceItem) => serviceItem.id === item.service_id); return qualified ? <span key={item.service_id}>{qualified.name}{qualified.active ? '' : ' · Inactive'}</span> : null }) : <p>No services assigned.</p>}</div></article></div> : null}</> : <p className="studio-empty">No piercer profiles yet.</p>}
     </section>
