@@ -139,6 +139,7 @@ The runtime window is therefore `Effective Studio Hours INTERSECT selected Pierc
 The underlying security-definer predicate is not directly executable by browser roles.
 `accept_new_service_waiver(...)` repeats this check immediately before it creates a signed Pending service transaction, so it inherits Temporary Piercer Availability without duplicate scheduling logic.
 The live scheduling check happens when that signed service transaction is established.
+If a previously displayed Dashboard assignment becomes stale before that server-side check, the Dashboard keeps the draft, shows a safe request to choose another piercer, and invalidates its checked assignable-piercer query for the selected services.
 Later waiver or payment recovery for the persisted transaction is not blocked after hours.
 New service lines on an already assigned open transaction still require a current qualification, while historical and unchanged open lines remain completable.
 Product-only transactions do not require a piercer and are unaffected by Studio or piercer availability.

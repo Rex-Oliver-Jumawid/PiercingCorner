@@ -126,9 +126,12 @@ beforeEach(() => {
 })
 
 function harness(role: AppRole = 'staff') {
-  return render(
+  const cache = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+  return {
+    cache,
+    ...render(
     <QueryClientProvider
-      client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}
+      client={cache}
     >
       <AuthContext.Provider
         value={{
@@ -141,7 +144,8 @@ function harness(role: AppRole = 'staff') {
         <DashboardPage />
       </AuthContext.Provider>
     </QueryClientProvider>,
-  )
+    ),
+  }
 }
 
 async function chooseExistingClient() {
@@ -352,6 +356,29 @@ describe('Dashboard transaction workflow', () => {
       payment: { method: 'cash', reference: '' },
     }, expect.anything()))
     expect(await screen.findByRole('dialog', { name: 'Sale completed' })).toBeVisible()
+  })
+
+  it('refreshes assignable piercers and shows a safe message when waiver acceptance rejects a stale assignment', async () => {
+    vi.mocked(service.acceptNewServiceWaiver).mockRejectedValue(
+      new Error('This piercer is no longer available for the selected service. Choose another piercer and try again.'),
+    )
+    const { cache } = harness()
+    const invalidate = vi.spyOn(cache, 'invalidateQueries')
+    await screen.findByText(transaction.reference_code)
+    fireEvent.click(screen.getByRole('button', { name: /Add Transaction/i }))
+    await chooseExistingClient()
+    await selectItem('service', 'Lobe Piercing')
+    await chooseServiceAssignment()
+    fireEvent.click(screen.getByRole('button', { name: 'Create Transaction Preview' }))
+    const waiver = await screen.findByRole('dialog', { name: 'Client Consent & Waiver' })
+    fireEvent.click(within(waiver).getByRole('button', { name: 'Draw test signature' }))
+    fireEvent.click(within(waiver).getByRole('button', { name: 'Accept Waiver & Continue to Payment' }))
+
+    expect(await within(waiver).findByRole('alert')).toHaveTextContent(
+      'This piercer is no longer available for the selected service. Choose another piercer and try again.',
+    )
+    await waitFor(() => expect(service.listAssignablePiercers).toHaveBeenCalledTimes(2))
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['dashboard'] })
   })
 
   it('finalizes a signed service transaction with one full payment', async () => {

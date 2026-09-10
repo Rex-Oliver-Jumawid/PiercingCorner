@@ -15,6 +15,8 @@ import type {
   StudioResourceOption,
 } from './transactionModel'
 
+export const stalePiercerAssignmentMessage = 'This piercer is no longer available for the selected service. Choose another piercer and try again.'
+
 export async function listTransactions(search: string, signal: AbortSignal) {
   const { data, error } = await getSupabaseClient()
     .rpc('search_dashboard_transactions', { search_text: search })
@@ -184,7 +186,7 @@ export async function acceptNewServiceWaiver(input: {
     throw new Error(expired
       ? 'This waiver session expired. Reload the current terms and ask the client to sign again.'
       : unavailable
-        ? 'The selected piercer is no longer qualified or available within the current Studio schedule.'
+        ? stalePiercerAssignmentMessage
         : 'Could not establish the signed transaction. Your draft has been kept.')
   }
   return data[0]

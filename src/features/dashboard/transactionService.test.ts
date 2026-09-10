@@ -120,6 +120,19 @@ describe('transaction Supabase service boundary', () => {
     expect(request().body).not.toHaveProperty('total')
   })
 
+  it('translates a stale server-side piercer rejection into a safe assignment message', async () => {
+    response({ message: 'The selected piercer is not qualified and available within current studio hours' }, 400)
+    await expect(acceptNewServiceWaiver({
+      eventId: 'event-1',
+      existingClient: { id: 'client-1', full_name: 'Ana', email: null, phone: null },
+      newClient: { first_name: '', last_name: '', email: '', phone: '' },
+      serviceIds: ['service-1'],
+      productIds: [],
+      piercerId: 'piercer-1',
+      stationId: 'station-1',
+    })).rejects.toThrow('This piercer is no longer available for the selected service. Choose another piercer and try again.')
+  })
+
   it('uploads the deterministic signature path before the PDF path', async () => {
     response({ Key: 'signature.png' })
     response({ Key: 'waiver.pdf' })

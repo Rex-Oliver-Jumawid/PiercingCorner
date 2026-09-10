@@ -15,6 +15,7 @@ import {
   finalizeTransaction,
   prepareWaiverSigning,
   recordProductSale,
+  stalePiercerAssignmentMessage,
   uploadWaiverDocuments,
 } from './transactionService'
 import { formatMoney, validateNewClient, validatePayment } from './transactionModel'
@@ -188,7 +189,13 @@ export function RecordSaleDialog({ onCompleted }: { onCompleted: (transactionId:
       await finalizeSignedWaiver({ eventId: signing.event_id, signaturePath: paths.signature, pdfPath: paths.pdf })
       await cache.invalidateQueries({ queryKey: ['dashboard'] })
       store.setStep('payment')
-    } catch (error) { setFormError(error instanceof Error ? error.message : 'Could not save the waiver.') }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not save the waiver.'
+      if (message === stalePiercerAssignmentMessage) {
+        await cache.invalidateQueries({ queryKey: ['dashboard'] })
+      }
+      setFormError(message)
+    }
     finally { setWaiverBusy(false) }
   }
 
