@@ -951,6 +951,10 @@ export type Database = {
           transaction_id: string
         }[]
       }
+      configure_recurring_piercer_availability: {
+        Args: { daily_availability: Json; target_piercer_profile_id: string }
+        Returns: undefined
+      }
       configure_recurring_studio_hours: {
         Args: { daily_hours: Json }
         Returns: undefined

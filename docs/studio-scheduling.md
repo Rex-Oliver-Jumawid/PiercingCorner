@@ -1,6 +1,6 @@
 # Studio scheduling and resource administration
 
-**Scheduling status: Phase 7 Effective Piercer Availability Resolver implemented.**
+**Scheduling status: Phase 8 Piercer Availability Schedule UI implemented.**
 
 The Owner-only Studio page currently manages Studio Hours, piercer profiles, service qualifications, recurring Piercer Availability, and dated Studio Exceptions.
 Piercer remains a Studio-domain profile and is not an application access role.
@@ -52,7 +52,11 @@ A Temporary Studio Schedule therefore changes this piercer's operational window 
 The database requires it to fit within that weekday's open Recurring Studio Hours, while assignment additionally intersects it with Effective Studio Hours for the target date.
 The database rejects shortening or closing a recurring Studio Hours row only when a saved Custom Hours interval would conflict; Studio-mode rows follow the changed Studio window and do not block the edit.
 
-The Owner currently edits one weekday and piercer at a time from Studio.
+The Owner can now use **Configure schedule** as the primary complete-week workflow. It selects one Piercer Profile, then clearly chooses a Recurring schedule or a Temporary schedule. Recurring repeats every week until changed and is committed through one atomic operation. Checked weekdays are available and unchecked weekdays are unavailable. Selected weekdays use either Same as Studio Hours (dynamic `studio` mode with null times) or one Custom Hours interval. The individual weekday editor remains available and explicitly edits **Recurring** availability only.
+
+Temporary configuration requires inclusive start and end dates and always submits all seven explicit states; unchecked days are explicit Temporary Unavailable states. It uses the existing atomic temporary RPC and never changes recurring rows. Active and upcoming Temporary Piercer Schedules are shown separately, each has an explicit **Edit temporary schedule** action, and the UI states the Manila date on which recurring availability resumes. Expired schedules are retained but not shown as current state. The UI displays persisted configuration and date context only; PostgreSQL continues to resolve Temporary > Recurring and the Studio intersection.
+
+The Owner previously edited one weekday and piercer at a time from Studio.
 That editor can mark the weekday unavailable by deleting the row, select Same as Studio Hours, or select Custom Hours and enter explicit times.
 The full Configure Piercer Schedule workflow remains deferred.
 No qualifications, recurring availability, or Studio Exceptions are invented for existing data.

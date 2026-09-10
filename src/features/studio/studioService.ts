@@ -1,6 +1,7 @@
 import { getSupabaseClient } from '../../lib/supabase/client'
 import type {
   ConfigureRecurringStudioHoursInput,
+  ConfigureRecurringPiercerAvailabilityInput,
   ConfigureTemporaryPiercerScheduleInput,
   ConfigureTemporaryStudioScheduleInput,
   EffectiveStudioHours,
@@ -76,6 +77,26 @@ export async function configureTemporaryPiercerSchedule(input: ConfigureTemporar
       throw new Error('Check the piercer, temporary dates, and all seven availability states.')
     }
     throw new Error('Could not save the Temporary Piercer Schedule. Please try again.')
+  }
+  return data
+}
+
+export async function configureRecurringPiercerAvailability(input: ConfigureRecurringPiercerAvailabilityInput) {
+  const { data, error } = await getSupabaseClient().rpc('configure_recurring_piercer_availability', {
+    target_piercer_profile_id: input.piercerProfileId,
+    daily_availability: input.availability.map((entry) => ({
+      weekday: entry.weekday, is_available: entry.is_available,
+      mode: entry.is_available ? entry.mode : null,
+      starts_at: entry.is_available && entry.mode === 'custom' ? entry.starts_at : null,
+      ends_at: entry.is_available && entry.mode === 'custom' ? entry.ends_at : null,
+    })),
+  })
+  if (error) {
+    if (error.code === '42501') throw new Error('Owner access is required to configure Recurring Piercer Availability.')
+    if (error.code === '22023' || error.code === '23514') {
+      throw new Error('Check the piercer, all seven weekdays, and Custom Hours within recurring Studio Hours.')
+    }
+    throw new Error('Could not save the recurring Piercer schedule. Please try again.')
   }
   return data
 }

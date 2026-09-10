@@ -246,6 +246,8 @@ Any invalid weekday or availability conflict rolls back the entire function call
 The RPC does not read or modify `studio_temporary_schedules`, `studio_temporary_hours`, or `studio_exceptions`.
 Individual Owner updates to one recurring weekday remain granted for the explicit per-day maintenance UI.
 
+`configure_recurring_piercer_availability(uuid, jsonb)` is the Owner-only bulk Recurring Piercer Availability boundary. Its payload contains each ISO weekday one through seven exactly once and provides `weekday`, `is_available`, `mode`, `starts_at`, and `ends_at`. It validates unavailable/null, Studio/null, and Custom/increasing-time state combinations, then atomically replaces the selected piercer's complete recurring week. Unavailable weekdays delete their `piercer_availability` rows, preserving the existing missing-row representation. Available rows remain subject to the existing Custom Hours versus Recurring Studio Hours trigger. A failed day rolls back the entire replacement. The function never updates Temporary Piercer Schedules, qualifications, profile data, or another piercer, and execution is granted only to `authenticated` after the function independently verifies an active Owner.
+
 `piercer_availability.mode` is constrained text with allowed values `studio` and `custom`.
 The migration assigns the default `custom` value to every existing explicit-time row, preserving its times and prior behavior.
 Custom rows require non-null `starts_at` and `ends_at` with `starts_at < ends_at`.

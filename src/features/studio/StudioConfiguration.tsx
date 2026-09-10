@@ -5,6 +5,8 @@ import { DateField, SelectField, TimeField } from '../../components/ui/FormContr
 import { CatalogCard } from './CatalogCard'
 import {
   useConfigureRecurringStudioHours,
+  useConfigureRecurringPiercerAvailability,
+  useConfigureTemporaryPiercerSchedule,
   useConfigureTemporaryStudioSchedule,
   useStudioMutation,
 } from './studioQueries'
@@ -15,6 +17,7 @@ import {
   formatStudioDate,
   getManilaDate,
   getRelevantTemporarySchedules,
+  getRelevantTemporaryPiercerSchedules,
   normalizeTime,
   STUDIO_DAYS,
   validateTimeRange,
@@ -25,6 +28,7 @@ import type {
   StudioConfiguration,
   StudioException,
   TemporaryStudioSchedule,
+  TemporaryPiercerSchedule,
 } from './studioModel'
 import type { CatalogEntry, CatalogKind } from './catalogModel'
 
@@ -35,6 +39,7 @@ export type StudioEditor =
   | { mode: 'piercer'; profile?: PiercerProfile }
   | { mode: 'qualifications'; profile: PiercerProfile }
   | { mode: 'availability'; profile: PiercerProfile; weekday: number }
+  | { mode: 'configure-piercer-schedule'; schedule?: TemporaryPiercerSchedule }
   | { mode: 'exception'; exception?: StudioException }
 
 function initials(name: string) {
@@ -244,7 +249,7 @@ function AvailabilityEditor({ profile, weekday, configuration, onClose }: { prof
       endsAt: available && mode === 'custom' ? ends : null,
     }, { onSuccess: onClose })
   }
-  return <EditorShell title="Edit Piercer Availability" subtitle={profile.display_name} busy={mutation.isPending} error={validation || mutation.error?.message} onClose={onClose} onSubmit={submit}>
+  return <EditorShell title="Edit Piercer Availability" subtitle={`${profile.display_name} · Recurring weekday maintenance`} busy={mutation.isPending} error={validation || mutation.error?.message} onClose={onClose} onSubmit={submit}>
     <SelectField className="catalog-field catalog-wide" label="Day" value={String(day)} options={STUDIO_DAYS.map((item) => ({ value: String(item.value), label: item.label }))} onValueChange={(value) => chooseDay(Number(value))} />
     <SelectField className="catalog-field catalog-wide" label="Availability" value={available ? 'available' : 'unavailable'} options={[{ value: 'available', label: 'Available' }, { value: 'unavailable', label: 'Not available' }]} onValueChange={(value) => setAvailable(value === 'available')} />
     <SelectField className="catalog-field catalog-wide" label="Hours source" disabled={!available} value={mode} options={[{ value: 'studio', label: 'Same as Studio Hours' }, { value: 'custom', label: 'Custom Hours' }]} onValueChange={setMode} />
@@ -253,6 +258,54 @@ function AvailabilityEditor({ profile, weekday, configuration, onClose }: { prof
       <TimeField className="catalog-field" label="Ends" value={ends} onValueChange={setEnds} />
     </> : null}
     {available && mode === 'studio' ? <p className="studio-notice catalog-wide">This piercer dynamically follows Effective Studio Hours for this weekday.</p> : null}
+  </EditorShell>
+}
+
+function ConfigurePiercerScheduleEditor({ configuration, schedule, onClose }: { configuration: StudioConfiguration; schedule?: TemporaryPiercerSchedule; onClose: () => void }) {
+  const [piercerId, setPiercerId] = useState(schedule?.piercer_profile_id ?? configuration.profiles[0]?.id ?? '')
+  const [kind, setKind] = useState<'recurring' | 'temporary'>(schedule ? 'temporary' : 'recurring')
+  const recurringRows = configuration.availability.filter((row) => row.piercer_profile_id === piercerId)
+  const sourceRows = schedule?.availability ?? recurringRows
+  const initialDays = schedule ? schedule.availability.filter((row) => row.is_available).map((row) => row.weekday) : recurringRows.map((row) => row.weekday)
+  const firstCustom = sourceRows.find((row) => row.mode === 'custom')
+  const [days, setDays] = useState<number[]>(initialDays)
+  const [hourMode, setHourMode] = useState<'studio' | 'custom'>(firstCustom ? 'custom' : 'studio')
+  const [starts, setStarts] = useState(normalizeTime(firstCustom?.starts_at) || '10:00')
+  const [ends, setEnds] = useState(normalizeTime(firstCustom?.ends_at) || '20:00')
+  const [startsOn, setStartsOn] = useState(schedule?.starts_on ?? '')
+  const [endsOn, setEndsOn] = useState(schedule?.ends_on ?? '')
+  const [validation, setValidation] = useState<string | null>(null)
+  const recurring = useConfigureRecurringPiercerAvailability()
+  const temporary = useConfigureTemporaryPiercerSchedule()
+  const busy = recurring.isPending || temporary.isPending
+  function toggleDay(day: number) { setDays((current) => current.includes(day) ? current.filter((item) => item !== day) : [...current, day].sort()) }
+  function selectPiercer(next: string) {
+    setPiercerId(next); const saved = configuration.availability.filter((row) => row.piercer_profile_id === next)
+    setDays(saved.map((row) => row.weekday)); const custom = saved.find((row) => row.mode === 'custom')
+    setHourMode(custom ? 'custom' : 'studio'); setStarts(normalizeTime(custom?.starts_at) || '10:00'); setEnds(normalizeTime(custom?.ends_at) || '20:00')
+  }
+  function submit(event: FormEvent) {
+    event.preventDefault()
+    let error: string | null = !piercerId ? 'Choose a piercer.' : null
+    if (!error && kind === 'temporary') error = !startsOn ? 'Choose a start date.' : !endsOn ? 'Choose an end date.' : startsOn > endsOn ? 'The start date must be on or before the end date.' : null
+    if (!error && days.length && hourMode === 'custom') error = validateTimeRange(starts, ends)
+    setValidation(error); if (error) return
+    const availability = STUDIO_DAYS.map((day) => ({ weekday: day.value, is_available: days.includes(day.value), mode: days.includes(day.value) ? hourMode : null, starts_at: days.includes(day.value) && hourMode === 'custom' ? starts : null, ends_at: days.includes(day.value) && hourMode === 'custom' ? ends : null }))
+    if (kind === 'recurring') recurring.mutate({ piercerProfileId: piercerId, availability }, { onSuccess: onClose })
+    else temporary.mutate({ id: schedule?.id, piercerProfileId: piercerId, startsOn, endsOn, availability }, { onSuccess: onClose })
+  }
+  return <EditorShell title={schedule ? 'Edit Temporary Piercer Schedule' : 'Configure Piercer Schedule'} subtitle={schedule ? 'Update this date-bounded override only.' : 'Configure a recurring week or a date-bounded override.'} busy={busy} error={validation || recurring.error?.message || temporary.error?.message} onClose={onClose} onSubmit={submit} submitLabel={schedule ? 'Save temporary schedule' : 'Save schedule'}>
+    <SelectField className="catalog-field catalog-wide" label="Piercer" value={piercerId} disabled={Boolean(schedule)} options={configuration.profiles.map((profile) => ({ value: profile.id, label: `${profile.display_name}${profile.active ? '' : ' (Inactive)'}` }))} onValueChange={selectPiercer} />
+    <fieldset className="studio-schedule-type catalog-wide"><legend>Schedule type</legend><div className="studio-schedule-options">
+      <label className={kind === 'recurring' ? 'selected' : ''}><input type="radio" name="piercer-schedule-type" checked={kind === 'recurring'} disabled={Boolean(schedule)} onChange={() => setKind('recurring')} /><span><strong>Recurring</strong><small>Repeats every week until changed.</small></span></label>
+      <label className={kind === 'temporary' ? 'selected' : ''}><input type="radio" name="piercer-schedule-type" checked={kind === 'temporary'} onChange={() => setKind('temporary')} /><span><strong>Temporary</strong><small>Overrides recurring availability only for the selected dates.</small></span></label>
+    </div></fieldset>
+    {kind === 'temporary' ? <><DateField className="catalog-field" label="Start date" value={startsOn} onValueChange={setStartsOn} /><DateField className="catalog-field" label="End date" value={endsOn} onValueChange={setEndsOn} /><p className="studio-notice catalog-wide">The date range is inclusive.{endsOn ? ` Recurring schedule resumes ${formatStudioDate(addCalendarDays(endsOn, 1), false)}.` : ''}</p></> : null}
+    <fieldset className="studio-working-days catalog-wide"><legend>Available weekdays</legend><div className="studio-day-choice-grid">{STUDIO_DAYS.map((day) => <label key={day.value} className={days.includes(day.value) ? 'selected' : ''}><input type="checkbox" checked={days.includes(day.value)} onChange={() => toggleDay(day.value)} /><span>{day.short}</span></label>)}</div></fieldset>
+    <SelectField className="catalog-field catalog-wide" label="Hours" disabled={!days.length} value={hourMode} options={[{ value: 'studio', label: 'Same as Studio Hours' }, { value: 'custom', label: 'Custom Hours' }]} onValueChange={setHourMode} />
+    {days.length && hourMode === 'studio' ? <p className="studio-notice catalog-wide">Available whenever the Studio is open.</p> : null}
+    {days.length && hourMode === 'custom' ? <><TimeField className="catalog-field" label="Starts" value={starts} onValueChange={setStarts} /><TimeField className="catalog-field" label="Ends" value={ends} onValueChange={setEnds} /></> : null}
+    <p className="studio-schedule-note catalog-wide">Unchecked recurring weekdays are unavailable. Temporary schedules explicitly save every unchecked weekday as unavailable.</p>
   </EditorShell>
 }
 
@@ -290,6 +343,7 @@ export function StudioConfigurationView({ configuration, editor, setEditor }: { 
   const station = configuration.stations.find((item) => item.id === profile?.default_station_id)
   const today = configuration.effectiveToday?.schedule_date ?? getManilaDate()
   const temporarySchedules = getRelevantTemporarySchedules(configuration.temporarySchedules, today)
+  const piercerTemporarySchedules = availabilityProfile ? getRelevantTemporaryPiercerSchedules(configuration.temporaryPiercerSchedules, availabilityProfile.id, today) : { active: null, upcoming: [] }
   const visibleTemporarySchedules = [temporarySchedules.active, ...temporarySchedules.upcoming].filter((item): item is TemporaryStudioSchedule => Boolean(item))
   const effective = configuration.effectiveToday
   return <>
@@ -308,8 +362,12 @@ export function StudioConfigurationView({ configuration, editor, setEditor }: { 
       {configuration.profiles.length ? <><div className="studio-tabs">{configuration.profiles.map((item) => <button type="button" className={profile?.id === item.id ? 'active' : ''} key={item.id} onClick={() => setSelectedProfileId(item.id)}>{item.display_name}</button>)}</div>{profile ? <div className="studio-profile-layout"><article className="studio-profile-card"><div className="studio-profile-top"><span>{initials(profile.display_name)}</span><div><strong>{profile.display_name}</strong><small>Piercer profile · {profile.active ? 'Active' : 'Inactive'}</small></div><b className={profile.active ? 'studio-open' : 'studio-closed'}>{profile.active ? 'ACTIVE' : 'INACTIVE'}</b></div><div className="studio-profile-meta"><div><span>Default station</span><strong>{station?.name ?? 'Not assigned'}</strong></div><div><span>Weekly coverage</span><strong>{coverage} {coverage === 1 ? 'day' : 'days'}</strong></div></div><button className="studio-row-edit studio-profile-edit" type="button" onClick={() => setEditor({ mode: 'piercer', profile })}>Edit profile</button></article><article className="studio-profile-services"><div className="studio-services-head"><div><h4>Services offered</h4><p>Only selected services can be assigned to this piercer.</p></div><button className="studio-row-edit" type="button" onClick={() => setEditor({ mode: 'qualifications', profile })}>Edit services</button></div><div className="studio-service-chips">{qualifications.length ? qualifications.map((item) => { const qualified = configuration.services.find((serviceItem) => serviceItem.id === item.service_id); return qualified ? <span key={item.service_id}>{qualified.name}{qualified.active ? '' : ' · Inactive'}</span> : null }) : <p>No services assigned.</p>}</div></article></div> : null}</> : <p className="studio-empty">No piercer profiles yet.</p>}
     </section>
     <section className="studio-panel"><header className="studio-panel-head"><div><h3>Services &amp; Products</h3><p>Manage the catalogs used by transactions, qualifications, sales, and reports.</p></div></header><div className="catalog-grid"><CatalogCard kind="service" onEdit={(kind, entry) => setEditor({ mode: 'catalog', kind, entry })} /><CatalogCard kind="product" onEdit={(kind, entry) => setEditor({ mode: 'catalog', kind, entry })} /></div></section>
-    <section className="studio-panel"><header className="studio-panel-head"><div><h3>Piercer Availability</h3><p>Recurring weekly availability within Effective Studio Hours.</p></div>{availabilityProfile ? <button className="catalog-button primary" type="button" onClick={() => setEditor({ mode: 'availability', profile: availabilityProfile, weekday: 1 })}>+ Add schedule</button> : null}</header>
-      {availabilityProfile ? <><div className="studio-tabs">{configuration.profiles.map((item) => <button type="button" className={availabilityProfile.id === item.id ? 'active' : ''} key={item.id} onClick={() => setSelectedAvailabilityId(item.id)}>{item.display_name}</button>)}</div><p className="studio-selected">Selected: <strong>{availabilityProfile.display_name}</strong></p><div>{STUDIO_DAYS.map((day) => { const row = configuration.availability.find((item) => item.piercer_profile_id === availabilityProfile.id && item.weekday === day.value); return <div className="studio-availability-row" key={day.value}><strong>{day.short}</strong><span>{row ? row.mode === 'studio' ? 'Same as Studio Hours' : `${formatStudioTime(row.starts_at)} — ${formatStudioTime(row.ends_at)}` : 'Not available'}</span><button className="studio-row-edit" type="button" aria-label={`Edit ${day.label} availability`} onClick={() => setEditor({ mode: 'availability', profile: availabilityProfile, weekday: day.value })}>Edit</button></div> })}</div></> : <p className="studio-empty">Add a piercer profile before configuring availability.</p>}
+    <section className="studio-panel"><header className="studio-panel-head"><div><h3>Piercer Availability</h3><p>Recurring weekly availability with date-bounded overrides.</p></div>{availabilityProfile ? <button className="catalog-button primary" type="button" onClick={() => setEditor({ mode: 'configure-piercer-schedule' })}>Configure schedule</button> : null}</header>
+      {availabilityProfile ? <><div className="studio-tabs">{configuration.profiles.map((item) => <button type="button" className={availabilityProfile.id === item.id ? 'active' : ''} key={item.id} onClick={() => setSelectedAvailabilityId(item.id)}>{item.display_name}{item.active ? '' : ' · Inactive'}</button>)}</div><p className="studio-selected">Selected: <strong>{availabilityProfile.display_name}</strong>{availabilityProfile.active ? '' : ' · Inactive profile'}</p>
+        {piercerTemporarySchedules.active ? <div className="studio-active-temporary"><div><span className="studio-source-badge temporary">Temporary</span><strong>{formatStudioDate(piercerTemporarySchedules.active.starts_on)} – {formatStudioDate(piercerTemporarySchedules.active.ends_on)}</strong><small>Recurring schedule resumes {formatStudioDate(addCalendarDays(piercerTemporarySchedules.active.ends_on, 1), false)}.</small></div><button className="studio-row-edit" type="button" onClick={() => setEditor({ mode: 'configure-piercer-schedule', schedule: piercerTemporarySchedules.active! })}>Edit temporary schedule</button></div> : null}
+        {piercerTemporarySchedules.upcoming.length ? <div className="studio-temporary-list"><p>Upcoming temporary schedules</p>{piercerTemporarySchedules.upcoming.map((schedule) => <div className="studio-temporary-row" key={schedule.id}><div><strong>{formatStudioDate(schedule.starts_on)} – {formatStudioDate(schedule.ends_on)}</strong><small>Recurring schedule resumes {formatStudioDate(addCalendarDays(schedule.ends_on, 1), false)}.</small></div><button className="studio-row-edit" type="button" onClick={() => setEditor({ mode: 'configure-piercer-schedule', schedule })}>Edit temporary schedule</button></div>)}</div> : null}
+        <div className="studio-recurring-label"><span className="studio-source-badge recurring">Recurring</span><span>Individual edits below only change the recurring weekday.</span><button className="studio-row-edit" type="button" onClick={() => setEditor({ mode: 'configure-piercer-schedule' })}>Edit recurring schedule</button></div>
+        <div>{STUDIO_DAYS.map((day) => { const row = configuration.availability.find((item) => item.piercer_profile_id === availabilityProfile.id && item.weekday === day.value); return <div className="studio-availability-row" key={day.value}><strong>{day.short}</strong><span>{row ? row.mode === 'studio' ? 'Same as Studio Hours' : `${formatStudioTime(row.starts_at)} — ${formatStudioTime(row.ends_at)}` : 'Not available'}</span><button className="studio-row-edit" type="button" aria-label={`Edit ${day.label} availability`} onClick={() => setEditor({ mode: 'availability', profile: availabilityProfile, weekday: day.value })}>Edit recurring</button></div> })}</div></> : <p className="studio-empty">Add a piercer profile before configuring availability.</p>}
     </section>
     <section className="studio-panel"><header className="studio-panel-head"><div><h3>Closures &amp; Exceptions</h3><p>Override normal hours for maintenance, private events, holidays, or reduced hours.</p></div><button className="catalog-button primary" type="button" onClick={() => setEditor({ mode: 'exception' })}>+ Add</button></header><div>{configuration.exceptions.length ? configuration.exceptions.map((item) => <div className="studio-exception-row" key={item.id}><strong>{new Intl.DateTimeFormat('en-PH', { month: 'short', day: '2-digit', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${item.exception_date}T00:00:00Z`))}</strong><span>{item.exception_type === 'closed' ? 'Closed all day' : `${formatStudioTime(item.opens_at)} — ${formatStudioTime(item.closes_at)}`}</span><span><strong>{item.reason}</strong><small>{item.exception_type === 'closed' ? 'Studio-wide closure' : 'Reduced operating hours'}</small></span><button className="studio-row-edit" type="button" onClick={() => setEditor({ mode: 'exception', exception: item })}>Edit</button></div>) : <p className="studio-empty">No closures or exceptions configured.</p>}</div></section>
     {editor?.mode === 'hours' ? <HoursEditor hour={editor.hour} onClose={() => setEditor(null)} /> : null}
@@ -317,6 +375,7 @@ export function StudioConfigurationView({ configuration, editor, setEditor }: { 
     {editor?.mode === 'piercer' ? <PiercerEditor profile={editor.profile} configuration={configuration} onClose={() => setEditor(null)} /> : null}
     {editor?.mode === 'qualifications' ? <QualificationsEditor profile={editor.profile} configuration={configuration} onClose={() => setEditor(null)} /> : null}
     {editor?.mode === 'availability' ? <AvailabilityEditor profile={editor.profile} weekday={editor.weekday} configuration={configuration} onClose={() => setEditor(null)} /> : null}
+    {editor?.mode === 'configure-piercer-schedule' ? <ConfigurePiercerScheduleEditor configuration={configuration} schedule={editor.schedule} onClose={() => setEditor(null)} /> : null}
     {editor?.mode === 'exception' ? <ExceptionEditor exception={editor.exception} onClose={() => setEditor(null)} /> : null}
   </>
 }

@@ -78,6 +78,11 @@ export interface ConfigureTemporaryPiercerScheduleInput {
   availability: Array<Omit<TemporaryPiercerAvailability, 'schedule_id'>>
 }
 
+export interface ConfigureRecurringPiercerAvailabilityInput {
+  piercerProfileId: string
+  availability: Array<Omit<TemporaryPiercerAvailability, 'schedule_id'>>
+}
+
 export interface EffectiveStudioHours {
   schedule_date: string
   weekday: number
@@ -174,6 +179,13 @@ export function getRelevantTemporarySchedules(schedules: TemporaryStudioSchedule
   const active = schedules.find((schedule) => schedule.starts_on <= today && schedule.ends_on >= today) ?? null
   const upcoming = schedules.filter((schedule) => schedule.starts_on > today)
     .sort((left, right) => left.starts_on.localeCompare(right.starts_on))
+  return { active, upcoming }
+}
+
+export function getRelevantTemporaryPiercerSchedules(schedules: TemporaryPiercerSchedule[], piercerId: string, today: string) {
+  const matching = schedules.filter((schedule) => schedule.piercer_profile_id === piercerId)
+  const active = matching.find((schedule) => schedule.starts_on <= today && schedule.ends_on >= today) ?? null
+  const upcoming = matching.filter((schedule) => schedule.starts_on > today).sort((a, b) => a.starts_on.localeCompare(b.starts_on))
   return { active, upcoming }
 }
 
