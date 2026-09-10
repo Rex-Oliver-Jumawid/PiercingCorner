@@ -53,6 +53,7 @@ beforeEach(() => {
       { weekday: 1, is_open: true, opens_at: '10:00:00', closes_at: '20:00:00' },
       { weekday: 7, is_open: false, opens_at: null, closes_at: null },
     ],
+    temporarySchedules: [],
     profiles: [{ id: 'piercer-1', display_name: 'Ana Santos', active: true, default_station_id: 'station-1' }],
     qualifications: [{ piercer_profile_id: 'piercer-1', service_id: 'service-1' }],
     availability: [{ piercer_profile_id: 'piercer-1', weekday: 1, starts_at: '10:00:00', ends_at: '18:00:00' }],

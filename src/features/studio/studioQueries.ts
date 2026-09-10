@@ -27,3 +27,6 @@ export function useStudioMutation<T>(mutationFn: (input: T) => Promise<unknown>)
   })
 }
 
+export function useConfigureTemporaryStudioSchedule() {
+  return useStudioMutation(service.configureTemporaryStudioSchedule)
+}

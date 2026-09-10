@@ -35,6 +35,8 @@ it leaves no sample accounts or business records in the local database.
 | `services` / `products` | Deactivatable catalogs with exact `numeric(12,2)` prices. |
 | `piercer_profiles` / `stations` | Deactivatable Studio resources assigned to service transactions. |
 | `studio_hours` | The seven persistent Recurring Studio Hours windows, one for each Manila weekday. |
+| `studio_temporary_schedules` | Date-bounded Temporary Studio Schedule metadata with non-overlapping inclusive date ranges. |
+| `studio_temporary_hours` | The seven explicit open or closed weekday rows belonging to each Temporary Studio Schedule. |
 | `piercer_service_qualifications` | Services each Studio piercer may be assigned to perform. |
 | `piercer_availability` | One persistent Recurring Piercer Availability interval per piercer and weekday. |
 | `studio_exceptions` | One dated Studio Exception per date: an all-day closure or a reduced-hours override of the recurring window. |
@@ -77,7 +79,7 @@ Calendar, or Overview pages.
 | Clients | Read/create/update | Read/create/update |
 | Services / products | Read/create/update and deactivate | Read active catalog rows only |
 | Piercer profiles / stations | Read/create/update and deactivate | Read active rows for Dashboard assignment |
-| Studio hours, qualifications, availability, exceptions | Read/create/update as applicable | Read only for checked Dashboard assignment |
+| Recurring/temporary Studio hours, qualifications, availability, exceptions | Read; recurring updates and atomic Owner-only temporary configuration | Read only for checked operational use |
 | Transactions | Read/create and edit open operational records | Same, through Dashboard only |
 | Transaction items | Read; add/edit/remove on open transactions | Same, through Dashboard only |
 | Payments | Read/record on open transactions | Read/record through Dashboard |
@@ -160,6 +162,22 @@ It is not an Effective Studio Hours or Effective Piercer Availability resolver.
 
 The database table name remains `studio_hours`; it is the persistence boundary for Recurring Studio Hours, not a persisted Effective Studio Hours result.
 
+`studio_temporary_schedules` stores independent `starts_on` and `ends_on` metadata for Temporary Studio Schedules.
+Its inclusive `daterange` exclusion constraint rejects any calendar date covered by another temporary schedule, including schedules that only touch on one endpoint date.
+`starts_on <= ends_on` is enforced, and an index on `(starts_on, ends_on)` supports date-bound lookup in addition to the GiST index created by the exclusion constraint.
+`created_by` references the creating `staff_accounts` row with restrictive deletion behavior, while the normal shared timestamp trigger maintains `updated_at`.
+
+`studio_temporary_hours` belongs to its schedule through `schedule_id` and cascades only when that parent temporary schedule is deleted.
+Its composite primary key permits exactly one row per ISO weekday (`1` through `7`) for a schedule.
+Open rows require non-null times with `opens_at < closes_at`; closed rows require both times to be null.
+The atomic configuration RPC requires every weekday exactly once, so persisted configurations created through the application boundary always contain seven explicit rows and can distinguish an intentionally closed day from the absence of a temporary schedule.
+
+`configure_temporary_studio_schedule(date, date, jsonb, uuid default null)` is the only granted temporary-schedule mutation boundary.
+It requires an active Owner, validates the date range and complete seven-day JSON payload, creates or replaces the metadata and daily rows, and returns the configured schedule ID.
+PostgreSQL executes the function call as one transaction, so a constraint failure rolls back a new schedule or restores all prior metadata and daily rows during replacement.
+Authenticated direct inserts, updates, and deletes are not granted, preventing a client from bypassing the complete-schedule invariant with separate weekday requests.
+RLS allows active accounts to read both temporary tables and contains Owner-only mutation policies as defense in depth; the RPC independently enforces Owner authorization.
+
 `accept_new_service_waiver(...)` rechecks those rules immediately before creating
 the signed Pending service transaction. This check occurs once at creation so a
 persisted transaction can finish payment recovery after hours. A transaction-item
@@ -171,11 +189,10 @@ open Studio Hours, conflicting hour reductions are rejected, and reduced-hours
 exceptions must narrow the normal window. Calendar remains a retained placeholder;
 transactions are still operational records rather than appointments.
 
-No temporary Studio or piercer schedule tables, availability-mode columns, or
-effective-schedule resolver functions exist yet. Their planned semantics are
-defined in [Studio scheduling](studio-scheduling.md); that document is canonical
-for scheduling behavior and clearly distinguishes planned behavior from this
-implemented database contract.
+Temporary Studio Schedule persistence now exists, but no temporary Piercer schedule tables, availability-mode columns, or effective-schedule resolver functions exist yet.
+Temporary schedules do not alter `studio_hours`, and `validate_piercer_availability`, `prevent_conflicting_studio_hours`, `validate_studio_exception`, `piercer_is_assignable`, and `get_assignable_piercers` intentionally continue to use Recurring Studio Hours directly.
+Dashboard assignment, waiver acceptance, Studio Exception validation, and Overview readiness therefore do not consume Temporary Studio Schedules in Phase 2.
+Their future precedence and integration rules are defined in [Studio scheduling](studio-scheduling.md).
 
 ## Phase 2 client read interfaces
 

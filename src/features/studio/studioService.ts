@@ -1,14 +1,18 @@
 import { getSupabaseClient } from '../../lib/supabase/client'
 import type {
+  ConfigureTemporaryStudioScheduleInput,
   PiercerProfile,
   StudioConfiguration,
   StudioException,
 } from './studioModel'
+import { mapTemporaryStudioSchedules } from './studioModel'
 
 export async function getStudioConfiguration(signal: AbortSignal): Promise<StudioConfiguration> {
   const client = getSupabaseClient()
-  const [hours, profiles, qualifications, availability, exceptions, services, stations] = await Promise.all([
+  const [hours, temporarySchedules, temporaryHours, profiles, qualifications, availability, exceptions, services, stations] = await Promise.all([
     client.from('studio_hours').select('*').order('weekday').abortSignal(signal),
+    client.from('studio_temporary_schedules').select('*').order('starts_on').order('id').abortSignal(signal),
+    client.from('studio_temporary_hours').select('*').order('schedule_id').order('weekday').abortSignal(signal),
     client.from('piercer_profiles').select('id, display_name, active, default_station_id').order('active', { ascending: false }).order('display_name').order('id').abortSignal(signal),
     client.from('piercer_service_qualifications').select('piercer_profile_id, service_id').abortSignal(signal),
     client.from('piercer_availability').select('piercer_profile_id, weekday, starts_at, ends_at').order('weekday').abortSignal(signal),
@@ -16,14 +20,36 @@ export async function getStudioConfiguration(signal: AbortSignal): Promise<Studi
     client.from('services').select('id, name, active').order('active', { ascending: false }).order('name').abortSignal(signal),
     client.from('stations').select('id, name, active').order('active', { ascending: false }).order('name').abortSignal(signal),
   ])
-  if ([hours, profiles, qualifications, availability, exceptions, services, stations].some((result) => result.error)) {
+  if ([hours, temporarySchedules, temporaryHours, profiles, qualifications, availability, exceptions, services, stations].some((result) => result.error)) {
     throw new Error('Unable to load Studio configuration. Please try again.')
   }
   return {
     recurringHours: hours.data ?? [], profiles: profiles.data ?? [], qualifications: qualifications.data ?? [],
+    temporarySchedules: mapTemporaryStudioSchedules(temporarySchedules.data ?? [], temporaryHours.data ?? []),
     availability: availability.data ?? [], exceptions: exceptions.data ?? [],
     services: services.data ?? [], stations: stations.data ?? [],
   }
+}
+
+export async function configureTemporaryStudioSchedule(input: ConfigureTemporaryStudioScheduleInput) {
+  const { data, error } = await getSupabaseClient().rpc('configure_temporary_studio_schedule', {
+    schedule_starts_on: input.startsOn,
+    schedule_ends_on: input.endsOn,
+    daily_hours: input.hours.map((hour) => ({
+      weekday: hour.weekday,
+      is_open: hour.is_open,
+      opens_at: hour.is_open ? hour.opens_at : null,
+      closes_at: hour.is_open ? hour.closes_at : null,
+    })),
+    ...(input.id ? { target_schedule_id: input.id } : {}),
+  })
+  if (error) {
+    const overlap = error.code === '23P01'
+    throw new Error(overlap
+      ? 'That date range overlaps another temporary Studio schedule.'
+      : 'Could not save the temporary Studio schedule. Please try again.')
+  }
+  return data
 }
 
 export async function saveRecurringStudioHour(input: { weekday: number; isOpen: boolean; opensAt: string; closesAt: string }) {

@@ -427,6 +427,73 @@ export type Database = {
         }
         Relationships: []
       }
+      studio_temporary_hours: {
+        Row: {
+          closes_at: string | null
+          is_open: boolean
+          opens_at: string | null
+          schedule_id: string
+          weekday: number
+        }
+        Insert: {
+          closes_at?: string | null
+          is_open: boolean
+          opens_at?: string | null
+          schedule_id: string
+          weekday: number
+        }
+        Update: {
+          closes_at?: string | null
+          is_open?: boolean
+          opens_at?: string | null
+          schedule_id?: string
+          weekday?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "studio_temporary_hours_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "studio_temporary_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      studio_temporary_schedules: {
+        Row: {
+          created_at: string
+          created_by: string
+          ends_on: string
+          id: string
+          starts_on: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string
+          ends_on: string
+          id?: string
+          starts_on: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          ends_on?: string
+          id?: string
+          starts_on?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "studio_temporary_schedules_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "staff_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transaction_adjustments: {
         Row: {
           adjustment_type: Database["public"]["Enums"]["transaction_adjustment_type"]
@@ -800,6 +867,15 @@ export type Database = {
           recorded_by: string
           transaction_id: string
         }[]
+      }
+      configure_temporary_studio_schedule: {
+        Args: {
+          daily_hours: Json
+          schedule_ends_on: string
+          schedule_starts_on: string
+          target_schedule_id?: string
+        }
+        Returns: string
       }
       create_client: {
         Args: {

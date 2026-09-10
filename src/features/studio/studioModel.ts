@@ -19,6 +19,31 @@ export interface RecurringStudioHour {
   closes_at: string | null
 }
 
+export interface TemporaryStudioHour {
+  schedule_id: string
+  weekday: number
+  is_open: boolean
+  opens_at: string | null
+  closes_at: string | null
+}
+
+export interface TemporaryStudioSchedule {
+  id: string
+  starts_on: string
+  ends_on: string
+  created_by: string
+  created_at: string
+  updated_at: string
+  hours: TemporaryStudioHour[]
+}
+
+export interface ConfigureTemporaryStudioScheduleInput {
+  id?: string
+  startsOn: string
+  endsOn: string
+  hours: Array<Omit<TemporaryStudioHour, 'schedule_id'>>
+}
+
 export interface StudioStation {
   id: string
   name: string
@@ -61,12 +86,25 @@ export interface StudioException {
 
 export interface StudioConfiguration {
   recurringHours: RecurringStudioHour[]
+  temporarySchedules: TemporaryStudioSchedule[]
   profiles: PiercerProfile[]
   qualifications: PiercerQualification[]
   availability: PiercerAvailability[]
   exceptions: StudioException[]
   services: StudioService[]
   stations: StudioStation[]
+}
+
+export function mapTemporaryStudioSchedules(
+  schedules: Array<Omit<TemporaryStudioSchedule, 'hours'>>,
+  hours: TemporaryStudioHour[],
+): TemporaryStudioSchedule[] {
+  return schedules.map((schedule) => ({
+    ...schedule,
+    hours: hours
+      .filter((hour) => hour.schedule_id === schedule.id)
+      .sort((left, right) => left.weekday - right.weekday),
+  }))
 }
 
 export function normalizeTime(value: string | null | undefined) {
