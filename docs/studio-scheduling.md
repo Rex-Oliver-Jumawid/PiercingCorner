@@ -152,10 +152,11 @@ Active Staff accounts may consume the checked assignable-piercer result in Dashb
 `studioService.ts` loads configuration and today's `get_effective_studio_hours` result, and writes individual recurring hours, atomic recurring configurations, atomic temporary configurations, availability, and exceptions.
 `studioQueries.ts` invalidates the authenticated Studio scope plus Dashboard and Settings queries after a Studio configuration mutation.
 `StudioConfiguration.tsx` presents the existing individual editors, and `StudioPage.tsx` composes the Owner-only workspace.
-Owner Overview currently treats recurring Studio Hours as ready only when all seven `studio_hours` rows exist and at least one is open.
-It separately reports an intentionally all-closed week and does not describe today's operational state.
+Owner Overview separates **configuration readiness** from **today's operational state**. Configuration readiness remains based only on persistent Recurring Studio Hours: all seven `studio_hours` rows must exist and at least one must be open. An intentionally all-closed recurring week is shown as configured-but-closed rather than incomplete. A Temporary Studio Schedule or Studio Exception never changes that readiness calculation.
 
-Successful recurring and temporary configuration mutations use the existing authenticated Studio configuration query scope, which invalidates and refetches Studio configuration plus the existing Dashboard and Settings dependent scopes.
+Today’s Studio state comes from `get_owner_overview()`, which calls `get_effective_studio_hours()` with the current `Asia/Manila` date. It reports whether the Studio is open, the effective interval when open, and whether the source is Recurring, Temporary, or a Studio Exception. A temporary or exception closure is therefore displayed as closed today without implying that the recurring setup is unconfigured; reduced exceptions display their reduced effective interval.
+
+Successful recurring and temporary configuration mutations use the existing authenticated Studio configuration query scope, which invalidates and refetches Studio configuration plus the Dashboard, Settings, and Owner Overview dependent scopes.
 Dashboard assignment and waiver acceptance respect temporary hours through the canonical backend call chain; no Dashboard, waiver, or Settings presentation changed.
 
 ### Configure Studio Hours workflow and UI states
@@ -242,14 +243,14 @@ All scheduling business logic must use `Asia/Manila`.
 | Effective Piercer Availability resolution | Supported | The internal resolver returns the selected source/mode and final Studio-intersected interval, including fail-closed corrupted-temporary behavior. |
 | Studio/piercer schedule intersection | Supported | One database resolver consumes Effective Studio Hours and intersects it with the selected temporary-or-recurring Piercer state. |
 | Assignable-piercer integration | Supported | Dashboard and waiver acceptance inherit Effective Piercer Availability through `piercer_is_assignable`. |
-| Overview readiness integration | Partially supported | Overview counts recurring `studio_hours` rows and open days, but cannot distinguish a configured schedule from today's temporary or exception-driven state. |
+| Overview readiness integration | Supported | Overview retains recurring `studio_hours` readiness counts while separately displaying today's backend-resolved Effective Studio Hours and source. |
 | Owner permissions | Already supported | The Studio route is Owner-only and scheduling table mutations have Owner-only RLS policies. |
 | Staff operational consumption | Already supported | Active Staff can call the checked assignable-piercer RPC for Dashboard without configuration mutation rights. |
 | Manila timezone support | Already supported | Database assignment and Overview day boundaries explicitly use `Asia/Manila`. |
 
 ## Deferred implementation
 
-Phase 7 does not add the full Configure Piercer Schedule UI, Overview effective-state integration, later full lifecycle E2E coverage, or a Temporary Studio deletion/end workflow.
+Phase 10 does not add full lifecycle E2E coverage, a Temporary Studio deletion/end workflow, Copy Schedule, or multi-piercer scheduling. Overview remains informational and does not edit scheduling configuration.
 Historical transaction recovery and product-only behavior remain unchanged.
 `validate_piercer_availability` and `prevent_conflicting_studio_hours` enforce permanent recurring configuration relationships only for Custom Hours; Studio-mode rows have no explicit interval to validate or conflict.
 

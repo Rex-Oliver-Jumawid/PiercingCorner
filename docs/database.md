@@ -300,7 +300,7 @@ while unchanged legacy/open lines remain completable.
 Owners manage Studio configuration under RLS and the checked recurring and temporary mutation RPCs.
 `validate_piercer_availability` and `prevent_conflicting_studio_hours` enforce Custom Hours recurring-to-recurring relationships, independently of temporary schedules.
 Neither `studio_hours` nor `piercer_availability` is rewritten by temporary configuration or resolution.
-Dashboard and waiver acceptance now consume Effective Piercer Availability through the predicate; Overview readiness still reads recurring configuration only.
+Dashboard and waiver acceptance now consume Effective Piercer Availability through the predicate; Overview configuration readiness still reads recurring configuration only, while its separate today-state fields use Effective Studio Hours.
 The Owner Studio page now exposes the Phase 4 Configure Hours workflow and reads today's resolver result for source presentation.
 Effective Piercer Availability is implemented, but no Configure Piercer Schedule UI exists yet.
 Calendar remains a placeholder and transactions remain operational records rather than appointments.
@@ -384,10 +384,21 @@ traffic. Each is `security definer`, uses an empty `search_path`, and independen
 requires `is_owner()`. Sales never passes date filters; Reports passes inclusive
 Manila dates to the shared completed-sales projection.
 
-`get_owner_overview()` also returns the number of configured Studio days and
-the number currently marked open. The frontend treats all seven persisted days
-with at least one open day as ready, distinguishes an intentionally all-closed
-week, and flags a schedule with missing day records as incomplete.
+`get_owner_overview()` also returns recurring Studio configuration counts plus
+today's Effective Studio Hours. `studio_days_configured` and
+`studio_open_days` are counts from persistent `studio_hours` only: the frontend
+treats all seven persisted days with at least one open day as ready,
+distinguishes an intentionally all-closed week, and flags missing day records
+as incomplete. Temporary schedules and exceptions do not alter those readiness
+fields.
+
+The same Owner-only RPC derives its operational fields with
+`get_effective_studio_hours((clock_timestamp() at time zone 'Asia/Manila')::date)`.
+`studio_is_open_today`, `studio_opens_at_today`, and
+`studio_closes_at_today` represent the resolver's effective window; times are
+null when closed. `studio_schedule_source_today` is `recurring`, `temporary`,
+or `exception`. The RPC does not implement scheduling precedence itself, and
+unrelated Overview metric calculations remain unchanged.
 
 Revenue is recorded payments belonging to completed transactions minus their
 refund and void adjustments.

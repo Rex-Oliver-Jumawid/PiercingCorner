@@ -1119,8 +1119,12 @@ export type Database = {
           clients: number
           collected: number
           open_transactions: number
+          studio_closes_at_today: string
           studio_days_configured: number
+          studio_is_open_today: boolean
           studio_open_days: number
+          studio_opens_at_today: string
+          studio_schedule_source_today: string
           today_transactions: number
           waiver_template_version: number
         }[]

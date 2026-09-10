@@ -26,6 +26,12 @@ import { useTransactions } from '../dashboard/transactionQueries'
 import { useOwnerOverview } from './overviewQueries'
 import './overview.css'
 
+function formatStudioTime(value: string | null | undefined) {
+  if (!value) return ''
+  const [hour, minute] = value.slice(0, 5).split(':').map(Number)
+  return `${hour % 12 || 12}:${String(minute).padStart(2, '0')} ${hour >= 12 ? 'PM' : 'AM'}`
+}
+
 function OverviewWorkspace() {
   const [search, setSearch] = useState('')
   const [committedSearch, setCommittedSearch] = useState('')
@@ -44,6 +50,16 @@ function OverviewWorkspace() {
     : studioOpenDays === 0
       ? 'Closed'
       : 'Ready'
+  const studioTodayIsOpen = overview.data?.studio_is_open_today ?? false
+  const studioTodaySource = overview.data?.studio_schedule_source_today
+  const studioTodaySourceLabel = studioTodaySource === 'temporary'
+    ? 'Temporary schedule'
+    : studioTodaySource === 'exception'
+      ? 'Studio exception'
+      : 'Recurring schedule'
+  const studioTodayDescription = studioTodayIsOpen
+    ? `${formatStudioTime(overview.data?.studio_opens_at_today)} — ${formatStudioTime(overview.data?.studio_closes_at_today)}`
+    : 'Closed today'
 
   useEffect(() => {
     const timeout = window.setTimeout(() => setCommittedSearch(search.trim()), 300)
@@ -168,6 +184,12 @@ function OverviewWorkspace() {
                   <p>Items affecting daily operations</p>
                 </div>
               </div>
+              <div className="border-b border-dashed border-[#d5a684] bg-[#fff7df] px-[17px] py-3" aria-label="Today's studio operating state">
+                <p className="m-0 text-[8px] font-black tracking-[.4px] text-[#7b574b] uppercase">Today’s studio state</p>
+                <strong className="mt-1 block text-[11px] text-[#3b2923]">{studioTodayDescription}</strong>
+                <small className="text-[8px] text-studio-muted">{studioTodaySourceLabel}</small>
+              </div>
+              <p className="m-0 border-b border-dashed border-[#d5a684] px-[17px] py-2 text-[8px] font-black tracking-[.4px] text-[#7b574b] uppercase">Schedule configuration</p>
               <div className="flex flex-col [&>a:last-child]:border-b-0 [&_strong]:text-[10px] [&_small]:text-[8px] [&_small]:text-studio-muted">
                 <Link aria-label="Go to Studio Hours" to="/studio#studio-hours" className="group grid min-h-[61px] grid-cols-[26px_minmax(0,1fr)_auto_14px] items-center gap-x-[9px] border-b border-dashed border-[#d5a684] px-[17px] py-2.5 text-left text-inherit no-underline transition-[background,transform] hover:translate-x-px hover:bg-[#fff1cf] focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[#3b2923]">
                   <span className={`row-span-2 grid size-6 place-items-center rounded-full border border-hippy-ink ${studioHoursReady ? 'bg-hippy-sage text-[#274c3c]' : 'bg-hippy-gold text-[#664219]'} text-[10px] font-black shadow-[1px_1px_0_#3b2923]`}>

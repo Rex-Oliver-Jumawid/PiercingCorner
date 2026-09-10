@@ -22,6 +22,7 @@ export function useStudioMutation<T>(mutationFn: (input: T) => Promise<unknown>)
         cache.invalidateQueries({ queryKey: scope }),
         cache.invalidateQueries({ queryKey: ['dashboard'] }),
         cache.invalidateQueries({ queryKey: ['settings'] }),
+        cache.invalidateQueries({ queryKey: ['overview'] }),
       ])
     },
   })

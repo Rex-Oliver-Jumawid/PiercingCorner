@@ -14,7 +14,7 @@ beforeEach(() => {
 })
 
 describe('Studio query mutations', () => {
-  it('invalidates the Studio scope and its existing operational dependents', async () => {
+  it('invalidates the Studio scope and affected operational and Overview queries', async () => {
     const cache = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     })
@@ -40,9 +40,10 @@ describe('Studio query mutations', () => {
       })
     })
 
-    await waitFor(() => expect(invalidate).toHaveBeenCalledTimes(3))
+    await waitFor(() => expect(invalidate).toHaveBeenCalledTimes(4))
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['studio', 'owner-1', 'owner'] })
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['dashboard'] })
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['settings'] })
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['overview'] })
   })
 })
