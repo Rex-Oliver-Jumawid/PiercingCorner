@@ -316,6 +316,35 @@ describe('Configure Piercer Schedule workflow', () => {
     expect(input.availability[1]).toMatchObject({ weekday: 2, is_available: false, mode: null, starts_at: null, ends_at: null })
   })
 
+  it('allows an explicitly labeled inactive piercer to be selected and configured with Custom Hours', async () => {
+    vi.mocked(studioService.getStudioConfiguration).mockResolvedValue(studioConfiguration({
+      profiles: [
+        { id: 'piercer-1', display_name: 'Ana Santos', active: true, default_station_id: 'station-1' },
+        { id: 'piercer-2', display_name: 'Bea Cruz', active: false, default_station_id: null },
+      ],
+    }))
+    harness()
+    fireEvent.click(await screen.findByRole('button', { name: 'Configure schedule' }))
+    const dialog = screen.getByRole('dialog', { name: 'Configure Piercer Schedule' })
+    const piercer = within(dialog).getByRole('combobox', { name: 'Piercer' })
+    fireEvent.keyDown(piercer, { key: 'ArrowDown' })
+    fireEvent.click(within(dialog).getByRole('option', { name: 'Bea Cruz (Inactive)' }))
+    expect(piercer).toHaveTextContent('Bea Cruz (Inactive)')
+
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Mon' }))
+    const hours = within(dialog).getByRole('combobox', { name: 'Hours' })
+    fireEvent.keyDown(hours, { key: 'ArrowDown' })
+    fireEvent.click(within(dialog).getByRole('option', { name: 'Custom Hours' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save schedule' }))
+
+    await waitFor(() => expect(studioService.configureRecurringPiercerAvailability).toHaveBeenCalledTimes(1))
+    const input = vi.mocked(studioService.configureRecurringPiercerAvailability).mock.calls[0][0]
+    expect(input.piercerProfileId).toBe('piercer-2')
+    expect(input.availability[0]).toEqual({
+      weekday: 1, is_available: true, mode: 'custom', starts_at: '10:00', ends_at: '20:00',
+    })
+  })
+
   it('uses studio mode with null times and sends temporary unavailable weekdays explicitly', async () => {
     vi.mocked(studioService.getStudioConfiguration).mockResolvedValue(studioConfiguration({
       availability: [{ piercer_profile_id: 'piercer-1', weekday: 1, mode: 'studio', starts_at: null, ends_at: null }],
@@ -342,7 +371,15 @@ describe('Configure Piercer Schedule workflow', () => {
     expect(await screen.findByText('Recurring schedule resumes Sep 21.')).toBeVisible()
     expect(screen.getByText('Upcoming temporary schedules')).toBeVisible()
     fireEvent.click(screen.getAllByRole('button', { name: 'Edit temporary schedule' })[0])
-    expect(screen.getByRole('dialog', { name: 'Edit Temporary Piercer Schedule' })).toBeVisible()
+    const dialog = screen.getByRole('dialog', { name: 'Edit Temporary Piercer Schedule' })
+    expect(dialog).toBeVisible()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save temporary schedule' }))
+    await waitFor(() => expect(studioService.configureTemporaryPiercerSchedule).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'active',
+      piercerProfileId: 'piercer-1',
+      startsOn: '2026-09-10',
+      endsOn: '2026-09-20',
+    }), expect.anything()))
   })
 })
 

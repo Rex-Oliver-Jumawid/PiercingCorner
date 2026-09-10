@@ -277,6 +277,8 @@ Its check constraint permits exactly three representations:
 | Same as Studio Hours | `is_available = true`, `mode = studio`; both times null. |
 | Custom Hours | `is_available = true`, `mode = custom`; non-null `starts_at < ends_at`. |
 
+An available row must have an explicit `studio` or `custom` mode. Phase 11 tightened the table check and atomic RPC validation so a null mode cannot pass through PostgreSQL `CHECK` null semantics.
+
 The Owner-only `configure_temporary_piercer_schedule(uuid, date, date, jsonb, uuid default null)` RPC verifies the piercer, range, and an array containing each weekday exactly once before writing.
 Creation inserts parent metadata and all seven states in one transaction.
 Replacement locks a target belonging to the supplied piercer, updates its dates, deletes its prior child rows, and inserts the complete replacement set; any error rolls back the whole function call and restores the original data.
@@ -302,7 +304,7 @@ Owners manage Studio configuration under RLS and the checked recurring and tempo
 Neither `studio_hours` nor `piercer_availability` is rewritten by temporary configuration or resolution.
 Dashboard and waiver acceptance now consume Effective Piercer Availability through the predicate; Overview configuration readiness still reads recurring configuration only, while its separate today-state fields use Effective Studio Hours.
 The Owner Studio page now exposes the Phase 4 Configure Hours workflow and reads today's resolver result for source presentation.
-Effective Piercer Availability is implemented, but no Configure Piercer Schedule UI exists yet.
+The Owner Studio page also exposes the complete Configure Piercer Schedule workflow for recurring and temporary Piercer Availability.
 Calendar remains a placeholder and transactions remain operational records rather than appointments.
 See [Studio scheduling](studio-scheduling.md) for implemented behavior and deferred phases.
 
@@ -315,6 +317,8 @@ docker exec -i supabase_db_PiercingCorner psql -U postgres -d postgres -v ON_ERR
 docker exec -i supabase_db_PiercingCorner psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/recurring_piercer_availability.sql
 docker exec -i supabase_db_PiercingCorner psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/temporary_piercer_availability.sql
 docker exec -i supabase_db_PiercingCorner psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/effective_piercer_availability.sql
+docker exec -i supabase_db_PiercingCorner psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/overview_effective_studio_hours.sql
+docker exec -i supabase_db_PiercingCorner psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/waivers.sql
 ```
 
 All focused suites roll back their fixtures; the canonical `supabase/tests/rls.sql` suite remains required.

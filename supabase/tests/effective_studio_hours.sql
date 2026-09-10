@@ -59,6 +59,26 @@ select pg_temp.check_hours('2026-09-20', true, '12:00', '18:00', 'temporary');
 select pg_temp.check_hours('2026-09-21', true, '10:00', '20:00', 'recurring');
 select pg_temp.check_hours('2027-09-17', true, '10:00', '20:00', 'recurring');
 select pg_temp.assert_true((select count(*) = 1 from public.studio_temporary_schedules), 'expired schedule remains stored');
+
+-- Calendar arithmetic remains date-based across leap-day/month and
+-- Sunday-to-Monday/year boundaries.
+select public.configure_temporary_studio_schedule('2028-02-29', '2028-02-29', (
+  select jsonb_agg(jsonb_build_object(
+    'weekday', day, 'is_open', true, 'opens_at', '11:00', 'closes_at', '17:00'
+  ) order by day) from generate_series(1,7) day
+));
+select public.configure_temporary_studio_schedule('2028-12-31', '2029-01-01', (
+  select jsonb_agg(jsonb_build_object(
+    'weekday', day, 'is_open', true, 'opens_at', '09:00', 'closes_at', '16:00'
+  ) order by day) from generate_series(1,7) day
+));
+select pg_temp.check_hours('2028-02-28', true, '10:00', '20:00', 'recurring');
+select pg_temp.check_hours('2028-02-29', true, '11:00', '17:00', 'temporary');
+select pg_temp.check_hours('2028-03-01', true, '10:00', '20:00', 'recurring');
+select pg_temp.check_hours('2028-12-30', true, '10:00', '20:00', 'recurring');
+select pg_temp.check_hours('2028-12-31', true, '09:00', '16:00', 'temporary');
+select pg_temp.check_hours('2029-01-01', true, '09:00', '16:00', 'temporary');
+select pg_temp.check_hours('2029-01-02', true, '10:00', '20:00', 'recurring');
 reset role;
 select pg_temp.assert_true(not pg_temp.assignable('2026-09-17 11:00+08'), 'temporary restricts recurring piercer');
 select pg_temp.assert_true(pg_temp.assignable('2026-09-17 12:00+08'), 'temporary opening inclusive');

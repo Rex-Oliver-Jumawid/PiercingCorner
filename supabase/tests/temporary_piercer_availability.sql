@@ -170,6 +170,15 @@ do $$
 declare invalid_payload jsonb;
 begin
   invalid_payload := jsonb_set(pg_temp.complete_availability(), '{0}',
+    '{"weekday":1,"is_available":true,"mode":null,"starts_at":null,"ends_at":null}'::jsonb);
+  begin
+    perform public.configure_temporary_piercer_schedule(
+      '74000000-0000-0000-0000-000000000010', '2026-10-01', '2026-10-07', invalid_payload
+    );
+    raise exception 'available state without a mode unexpectedly succeeded';
+  exception when invalid_parameter_value then null; end;
+
+  invalid_payload := jsonb_set(pg_temp.complete_availability(), '{0}',
     '{"weekday":1,"is_available":false,"mode":"studio","starts_at":null,"ends_at":null}'::jsonb);
   begin
     perform public.configure_temporary_piercer_schedule(
@@ -205,6 +214,16 @@ begin
     raise exception 'Custom mode with reversed times unexpectedly succeeded';
   exception when check_violation then null; end;
 end $$;
+
+select pg_temp.assert_true(
+  not exists (
+    select 1 from public.piercer_temporary_schedules
+    where piercer_profile_id = '74000000-0000-0000-0000-000000000010'
+      and starts_on = '2026-10-01'
+      and ends_on = '2026-10-07'
+  ),
+  'an invalid Temporary Piercer state must roll back the parent and all weekdays'
+);
 
 -- Replacement keeps the ID, replaces all children, and never touches recurring rows.
 select public.configure_temporary_piercer_schedule(

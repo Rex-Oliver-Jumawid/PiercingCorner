@@ -377,6 +377,12 @@ describe('Dashboard transaction workflow', () => {
     expect(await within(waiver).findByRole('alert')).toHaveTextContent(
       'This piercer is no longer available for the selected service. Choose another piercer and try again.',
     )
+    expect(useSaleStore.getState()).toMatchObject({
+      open: true,
+      step: 'waiver',
+      serviceIds: ['service-1'],
+      existingClient: { id: 'client-1' },
+    })
     await waitFor(() => expect(service.listAssignablePiercers).toHaveBeenCalledTimes(2))
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['dashboard'] })
   })
