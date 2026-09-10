@@ -54,9 +54,9 @@
 .app-sidebar::before {
   content: '✦';
   position: absolute;
-  top: 24px;
-  right: 18px;
-  font-size: 14px;
+  top: 8px;
+  right: 10px;
+  font-size: 11px;
   color: #cc5834;
 }
 
