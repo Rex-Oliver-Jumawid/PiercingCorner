@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatStudioTime, mapTemporaryStudioSchedules, validateTimeRange } from './studioModel'
+import { addCalendarDays, formatStudioDate, formatStudioTime, getManilaDate, getRelevantTemporarySchedules, mapTemporaryStudioSchedules, validateTimeRange } from './studioModel'
 
 describe('Studio schedule model', () => {
   it('formats stored times without depending on the browser timezone', () => {
@@ -30,5 +30,21 @@ describe('Studio schedule model', () => {
 
     expect(result[0].hours.map((hour) => hour.weekday)).toEqual([4, 7])
     expect(result[0].hours[1]).toEqual(expect.objectContaining({ is_open: false, opens_at: null, closes_at: null }))
+  })
+
+  it('uses Manila business dates and classifies temporary ranges without treating expired schedules as active', () => {
+    expect(getManilaDate(new Date('2026-09-09T16:30:00Z'))).toBe('2026-09-10')
+    expect(addCalendarDays('2026-09-20', 1)).toBe('2026-09-21')
+    expect(formatStudioDate('2026-09-21', false)).toBe('Sep 21')
+    const schedule = (id: string, starts_on: string, ends_on: string) => ({
+      id, starts_on, ends_on, created_by: 'owner-1', created_at: '', updated_at: '', hours: [],
+    })
+    const result = getRelevantTemporarySchedules([
+      schedule('expired', '2026-09-01', '2026-09-09'),
+      schedule('future', '2026-09-21', '2026-09-25'),
+      schedule('active', '2026-09-10', '2026-09-20'),
+    ], '2026-09-10')
+    expect(result.active?.id).toBe('active')
+    expect(result.upcoming.map((item) => item.id)).toEqual(['future'])
   })
 })

@@ -38,7 +38,7 @@ it leaves no sample accounts or business records in the local database.
 | `studio_temporary_schedules` | Date-bounded Temporary Studio Schedule metadata with non-overlapping inclusive date ranges. |
 | `studio_temporary_hours` | The seven explicit open or closed weekday rows belonging to each Temporary Studio Schedule. |
 | `piercer_service_qualifications` | Services each Studio piercer may be assigned to perform. |
-| `piercer_availability` | One persistent Recurring Piercer Availability interval per piercer and weekday. |
+| `piercer_availability` | At most one persistent Recurring Piercer Availability row per piercer and weekday, in `studio` or `custom` mode; absence means unavailable. |
 | `studio_exceptions` | One dated Studio Exception per date: an all-day closure or a reduced-hours override of the applicable base window. |
 | `transactions` | Operational Dashboard transaction with immutable client snapshot and first completion timestamp; not an appointment or draft sale. |
 | `transaction_items` | Service/product lines with name and price snapshots. |
@@ -79,7 +79,7 @@ Calendar, or Overview pages.
 | Clients | Read/create/update | Read/create/update |
 | Services / products | Read/create/update and deactivate | Read active catalog rows only |
 | Piercer profiles / stations | Read/create/update and deactivate | Read active rows for Dashboard assignment |
-| Recurring/temporary Studio hours, qualifications, availability, exceptions | Read; recurring updates and atomic Owner-only temporary configuration | Read only for checked operational use |
+| Recurring/temporary Studio hours, qualifications, availability, exceptions | Read; individual recurring updates plus atomic Owner-only recurring and temporary configuration | Read only for checked operational use |
 | Transactions | Read/create and edit open operational records | Same, through Dashboard only |
 | Transaction items | Read; add/edit/remove on open transactions | Same, through Dashboard only |
 | Payments | Read/record on open transactions | Read/record through Dashboard |
@@ -201,17 +201,44 @@ PostgreSQL executes the function call as one transaction, so a constraint failur
 Authenticated direct inserts, updates, and deletes are not granted, preventing a client from bypassing the complete-schedule invariant with separate weekday requests.
 RLS allows active accounts to read both temporary tables and contains Owner-only mutation policies as defense in depth; the RPC independently enforces Owner authorization.
 
+`configure_recurring_studio_hours(jsonb)` is the Owner-only bulk Recurring Studio Hours boundary.
+Its `daily_hours` JSON array must contain each ISO weekday `1` through `7` exactly once.
+Every entry contains `weekday`, `is_open`, `opens_at`, and `closes_at`; open rows require non-null increasing times, while closed rows require both times to be null.
+An all-closed week is valid under the existing business rules.
+The function updates all seven existing `studio_hours` rows in one PostgreSQL statement and rejects a corrupted configuration that does not update exactly seven rows.
+The existing `studio_hours_prevent_availability_conflicts` trigger runs for each changed weekday, so shortening or closing hours that contain Recurring Piercer Availability is still rejected.
+Any invalid weekday or availability conflict rolls back the entire function call.
+The RPC does not read or modify `studio_temporary_schedules`, `studio_temporary_hours`, or `studio_exceptions`.
+Individual Owner updates to one recurring weekday remain granted for the explicit per-day maintenance UI.
+
+`piercer_availability.mode` is constrained text with allowed values `studio` and `custom`.
+The migration assigns the default `custom` value to every existing explicit-time row, preserving its times and prior behavior.
+Custom rows require non-null `starts_at` and `ends_at` with `starts_at < ends_at`.
+Studio rows require both time columns to be null because their interval is derived dynamically from Effective Studio Hours.
+A missing piercer/weekday row remains the only recurring unavailable representation.
+
+`validate_piercer_availability` compares only Custom Hours with the open Recurring Studio Hours row for the same weekday.
+It rejects a custom interval outside that recurring window; Studio mode has no explicit interval to compare and passes this trigger boundary without fabricated times.
+`prevent_conflicting_studio_hours` likewise blocks recurring Studio Hours edits only when they would invalidate saved Custom Hours.
+Studio-mode rows neither block nor get rewritten by a recurring Studio change.
+
+`piercer_is_assignable(uuid, uuid[], timestamptz)` now interprets both recurring modes while retaining the existing Manila-time, active-profile, active-service, and qualification checks.
+Custom mode requires the current time to fall inside both its stored interval and Effective Studio Hours.
+Studio mode requires only the Effective Studio Hours interval, so Temporary Studio Schedules are followed automatically and Studio Exceptions can close or narrow the operational window without changing recurring piercer data.
+This is the minimum Phase 5 operational integration; the reusable Effective Piercer Availability resolver remains deferred to Phase 7.
+
 `accept_new_service_waiver(...)` rechecks those rules immediately before creating
 the signed Pending service transaction. This check occurs once at creation so a
 persisted transaction can finish payment recovery after hours. A transaction-item
 trigger checks newly inserted assigned service lines against current qualifications,
 while unchanged legacy/open lines remain completable.
 
-Owners manage Studio configuration under RLS and the checked temporary mutation RPC.
-`validate_piercer_availability` and `prevent_conflicting_studio_hours` still enforce recurring-to-recurring relationships, independently of temporary schedules.
+Owners manage Studio configuration under RLS and the checked recurring and temporary mutation RPCs.
+`validate_piercer_availability` and `prevent_conflicting_studio_hours` enforce Custom Hours recurring-to-recurring relationships, independently of temporary schedules.
 Neither `studio_hours` nor `piercer_availability` is rewritten by temporary configuration or resolution.
 Dashboard and waiver acceptance now consume Effective Studio Hours through the predicate; Overview readiness still reads recurring configuration only.
-No temporary Piercer schedule tables, availability modes, Effective Piercer Availability resolver, or Configure Hours UI exist yet.
+The Owner Studio page now exposes the Phase 4 Configure Hours workflow and reads today's resolver result for source presentation.
+No temporary Piercer schedule tables, Effective Piercer Availability resolver, or Configure Piercer Schedule UI exist yet.
 Calendar remains a placeholder and transactions remain operational records rather than appointments.
 See [Studio scheduling](studio-scheduling.md) for implemented behavior and deferred phases.
 
@@ -220,9 +247,11 @@ Focused scheduling verification uses the existing Studio suite plus deterministi
 ```bash
 docker exec -i supabase_db_PiercingCorner psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/studio.sql
 docker exec -i supabase_db_PiercingCorner psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/effective_studio_hours.sql
+docker exec -i supabase_db_PiercingCorner psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/configure_recurring_studio_hours.sql
+docker exec -i supabase_db_PiercingCorner psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/recurring_piercer_availability.sql
 ```
 
-Both suites roll back their fixtures; the canonical `supabase/tests/rls.sql` suite remains required.
+All focused suites roll back their fixtures; the canonical `supabase/tests/rls.sql` suite remains required.
 
 ## Phase 2 client read interfaces
 

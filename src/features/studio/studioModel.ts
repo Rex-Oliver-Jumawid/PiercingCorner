@@ -44,6 +44,22 @@ export interface ConfigureTemporaryStudioScheduleInput {
   hours: Array<Omit<TemporaryStudioHour, 'schedule_id'>>
 }
 
+export interface ConfigureRecurringStudioHoursInput {
+  hours: RecurringStudioHour[]
+}
+
+export interface EffectiveStudioHours {
+  schedule_date: string
+  weekday: number
+  is_open: boolean
+  opens_at: string | null
+  closes_at: string | null
+  source: 'recurring' | 'temporary' | 'exception'
+  temporary_schedule_id: string | null
+  exception_id: string | null
+  exception_type: 'closed' | 'reduced_hours' | null
+}
+
 export interface StudioStation {
   id: string
   name: string
@@ -56,11 +72,14 @@ export interface StudioService {
   active: boolean
 }
 
-export interface PiercerAvailability {
+export type RecurringPiercerAvailabilityMode = 'studio' | 'custom'
+
+export interface RecurringPiercerAvailability {
   piercer_profile_id: string
   weekday: number
-  starts_at: string
-  ends_at: string
+  mode: RecurringPiercerAvailabilityMode
+  starts_at: string | null
+  ends_at: string | null
 }
 
 export interface PiercerProfile {
@@ -87,12 +106,44 @@ export interface StudioException {
 export interface StudioConfiguration {
   recurringHours: RecurringStudioHour[]
   temporarySchedules: TemporaryStudioSchedule[]
+  effectiveToday: EffectiveStudioHours | null
   profiles: PiercerProfile[]
   qualifications: PiercerQualification[]
-  availability: PiercerAvailability[]
+  availability: RecurringPiercerAvailability[]
   exceptions: StudioException[]
   services: StudioService[]
   stations: StudioStation[]
+}
+
+export function getManilaDate(now = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Manila',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(now)
+}
+
+export function addCalendarDays(value: string, days: number) {
+  const date = new Date(`${value}T00:00:00Z`)
+  date.setUTCDate(date.getUTCDate() + days)
+  return date.toISOString().slice(0, 10)
+}
+
+export function formatStudioDate(value: string, includeYear = true) {
+  return new Intl.DateTimeFormat('en-PH', {
+    month: 'short',
+    day: 'numeric',
+    ...(includeYear ? { year: 'numeric' } : {}),
+    timeZone: 'UTC',
+  }).format(new Date(`${value}T00:00:00Z`))
+}
+
+export function getRelevantTemporarySchedules(schedules: TemporaryStudioSchedule[], today: string) {
+  const active = schedules.find((schedule) => schedule.starts_on <= today && schedule.ends_on >= today) ?? null
+  const upcoming = schedules.filter((schedule) => schedule.starts_on > today)
+    .sort((left, right) => left.starts_on.localeCompare(right.starts_on))
+  return { active, upcoming }
 }
 
 export function mapTemporaryStudioSchedules(

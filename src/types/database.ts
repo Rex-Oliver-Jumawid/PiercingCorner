@@ -162,25 +162,28 @@ export type Database = {
       piercer_availability: {
         Row: {
           created_at: string
-          ends_at: string
+          ends_at: string | null
+          mode: string
           piercer_profile_id: string
-          starts_at: string
+          starts_at: string | null
           updated_at: string
           weekday: number
         }
         Insert: {
           created_at?: string
-          ends_at: string
+          ends_at?: string | null
+          mode?: string
           piercer_profile_id: string
-          starts_at: string
+          starts_at?: string | null
           updated_at?: string
           weekday: number
         }
         Update: {
           created_at?: string
-          ends_at?: string
+          ends_at?: string | null
+          mode?: string
           piercer_profile_id?: string
-          starts_at?: string
+          starts_at?: string | null
           updated_at?: string
           weekday?: number
         }
@@ -868,6 +871,10 @@ export type Database = {
           transaction_id: string
         }[]
       }
+      configure_recurring_studio_hours: {
+        Args: { daily_hours: Json }
+        Returns: undefined
+      }
       configure_temporary_studio_schedule: {
         Args: {
           daily_hours: Json
@@ -1368,4 +1375,3 @@ export const Constants = {
     },
   },
 } as const
-

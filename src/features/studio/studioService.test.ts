@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getSupabaseClient } from '../../lib/supabase/client'
 import type { Database } from '../../types/database'
-import { configureTemporaryStudioSchedule, getStudioConfiguration } from './studioService'
+import { configureRecurringStudioHours, configureTemporaryStudioSchedule, getStudioConfiguration, saveAvailability } from './studioService'
 
 vi.mock('../../lib/supabase/client', () => ({ getSupabaseClient: vi.fn() }))
 const fetcher = vi.fn<typeof fetch>()
@@ -29,6 +29,9 @@ function responseFor(path: string) {
       { schedule_id: 'schedule-1', weekday: 4, is_open: true, opens_at: '12:00:00', closes_at: '18:00:00' },
     ]
   }
+  if (path.endsWith('/piercer_availability')) {
+    return [{ piercer_profile_id: 'piercer-1', weekday: 1, mode: 'studio', starts_at: null, ends_at: null }]
+  }
   return []
 }
 
@@ -47,11 +50,68 @@ describe('Studio Supabase service boundary', () => {
     expect(configuration.recurringHours).toEqual([])
     expect(configuration.temporarySchedules).toHaveLength(1)
     expect(configuration.temporarySchedules[0].hours.map((hour) => hour.weekday)).toEqual([4, 7])
+    expect(configuration.availability).toEqual([
+      { piercer_profile_id: 'piercer-1', weekday: 1, mode: 'studio', starts_at: null, ends_at: null },
+    ])
     expect(fetcher.mock.calls.map(([input]) => new URL(String(input)).pathname)).toEqual(expect.arrayContaining([
       '/rest/v1/studio_hours',
       '/rest/v1/studio_temporary_schedules',
       '/rest/v1/studio_temporary_hours',
     ]))
+  })
+
+  it('persists recurring Custom Hours with explicit times', async () => {
+    fetcher.mockResolvedValueOnce(new Response('[]', {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }))
+
+    await saveAvailability({
+      piercerId: 'piercer-1', weekday: 1, available: true,
+      mode: 'custom', startsAt: '12:00', endsAt: '18:00',
+    })
+
+    const [input, init] = fetcher.mock.calls[0]
+    expect(new URL(String(input)).pathname).toBe('/rest/v1/piercer_availability')
+    expect(JSON.parse(String(init?.body))).toEqual({
+      piercer_profile_id: 'piercer-1', weekday: 1, mode: 'custom',
+      starts_at: '12:00', ends_at: '18:00',
+    })
+  })
+
+  it('persists Same as Studio Hours without copied Studio times', async () => {
+    fetcher.mockResolvedValueOnce(new Response('[]', {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }))
+
+    await saveAvailability({
+      piercerId: 'piercer-1', weekday: 2, available: true,
+      mode: 'studio', startsAt: '10:00', endsAt: '20:00',
+    })
+
+    expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body))).toEqual({
+      piercer_profile_id: 'piercer-1', weekday: 2, mode: 'studio',
+      starts_at: null, ends_at: null,
+    })
+  })
+
+  it('keeps unavailable weekdays as missing rows', async () => {
+    fetcher.mockResolvedValueOnce(new Response('[]', {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }))
+
+    await saveAvailability({
+      piercerId: 'piercer-1', weekday: 3, available: false,
+      mode: 'studio', startsAt: null, endsAt: null,
+    })
+
+    const [input, init] = fetcher.mock.calls[0]
+    const url = new URL(String(input))
+    expect(init?.method).toBe('DELETE')
+    expect(url.searchParams.get('piercer_profile_id')).toBe('eq.piercer-1')
+    expect(url.searchParams.get('weekday')).toBe('eq.3')
   })
 
   it('sends all seven weekdays in one atomic temporary-schedule RPC', async () => {
@@ -81,6 +141,25 @@ describe('Studio Supabase service boundary', () => {
     })
   })
 
+  it('sends all seven weekdays in one atomic recurring-hours RPC', async () => {
+    fetcher.mockResolvedValueOnce(new Response('null', {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }))
+    const hours = Array.from({ length: 7 }, (_, index) => ({
+      weekday: index + 1,
+      is_open: index < 6,
+      opens_at: index < 6 ? '10:00' : null,
+      closes_at: index < 6 ? '20:00' : null,
+    }))
+
+    await configureRecurringStudioHours({ hours })
+
+    const [input, init] = fetcher.mock.calls[0]
+    expect(new URL(String(input)).pathname).toBe('/rest/v1/rpc/configure_recurring_studio_hours')
+    expect(JSON.parse(String(init?.body))).toEqual({ daily_hours: hours })
+  })
+
   it('normalizes closed-day times and hides overlap database details', async () => {
     fetcher.mockResolvedValueOnce(new Response(JSON.stringify({ message: 'conflicting key details', code: '23P01' }), {
       status: 409,
@@ -101,5 +180,29 @@ describe('Studio Supabase service boundary', () => {
 
     const body = JSON.parse(String(fetcher.mock.calls[0][1]?.body))
     expect(body.daily_hours[0]).toEqual({ weekday: 1, is_open: false, opens_at: null, closes_at: null })
+  })
+
+  it('translates temporary authorization and validation failures into actionable messages', async () => {
+    const input = {
+      startsOn: '2026-09-17',
+      endsOn: '2026-09-20',
+      hours: Array.from({ length: 7 }, (_, index) => ({
+        weekday: index + 1,
+        is_open: false,
+        opens_at: null,
+        closes_at: null,
+      })),
+    }
+    fetcher.mockResolvedValueOnce(new Response(JSON.stringify({ message: 'Owner access required', code: '42501' }), {
+      status: 403,
+      headers: { 'Content-Type': 'application/json' },
+    }))
+    await expect(configureTemporaryStudioSchedule(input)).rejects.toThrow('Owner access is required')
+
+    fetcher.mockResolvedValueOnce(new Response(JSON.stringify({ message: 'internal constraint text', code: '23514' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    }))
+    await expect(configureTemporaryStudioSchedule(input)).rejects.toThrow('Check the temporary dates')
   })
 })

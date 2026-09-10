@@ -30,3 +30,7 @@ export function useStudioMutation<T>(mutationFn: (input: T) => Promise<unknown>)
 export function useConfigureTemporaryStudioSchedule() {
   return useStudioMutation(service.configureTemporaryStudioSchedule)
 }
+
+export function useConfigureRecurringStudioHours() {
+  return useStudioMutation(service.configureRecurringStudioHours)
+}

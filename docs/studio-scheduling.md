@@ -1,6 +1,6 @@
 # Studio scheduling and resource administration
 
-**Scheduling status: Phase 3 Effective Studio Hours resolver and operational assignment integration implemented.**
+**Scheduling status: Phase 5 Recurring Piercer Availability Model implemented.**
 
 The Owner-only Studio page currently manages Studio Hours, piercer profiles, service qualifications, recurring Piercer Availability, and dated Studio Exceptions.
 Piercer remains a Studio-domain profile and is not an application access role.
@@ -18,8 +18,9 @@ This document records verified current scheduling behavior.
 It contains one persistent row for each ISO weekday from Monday (`1`) through Sunday (`7`).
 Each row is either closed or has one opening and closing interval.
 These rows repeat indefinitely and do not expire at the end of a week.
-The Owner currently edits one weekday at a time from Studio.
-There is no bulk recurring-hours editor yet.
+The Owner can configure the complete recurring week from one Configure Hours dialog or continue to edit one recurring weekday at a time.
+The bulk workflow selects working days plus one opening and closing interval, saves selected days open and unselected days explicitly closed, and commits all seven rows atomically through `configure_recurring_studio_hours(jsonb)`.
+If any weekday conflicts with Recurring Piercer Availability, PostgreSQL rolls back the complete configuration and the UI directs the Owner to update the conflicting piercer schedule first.
 At the application boundary, `RecurringStudioHour`, `StudioConfiguration.recurringHours`, and `saveRecurringStudioHour` name this persistent weekly default fallback explicitly.
 They do not resolve or represent Effective Studio Hours.
 
@@ -34,15 +35,26 @@ Expired records remain stored and become irrelevant through date evaluation; the
 
 The frontend domain now exposes `TemporaryStudioSchedule`, `TemporaryStudioHour`, and `StudioConfiguration.temporarySchedules`.
 `getStudioConfiguration` loads this persistence separately from `recurringHours`, and `configureTemporaryStudioSchedule` sends the complete seven-day configuration to one Owner-only database RPC.
-The production Studio UI does not expose this mutation yet.
+The Configure Hours dialog exposes Temporary mode with inclusive start/end dates, working days, and one opening and closing interval.
+It uses the existing atomic RPC for both creation and explicit `Edit temporary schedule` replacement.
+Temporary configuration never mutates Recurring Studio Hours, and the UI explains the date on which the recurring schedule resumes.
+Phase 4 does not add an end or delete action; Temporary Studio Schedules stop applying through their inclusive date range and expired records remain stored.
 
 ### Recurring Piercer Availability
 
 `piercer_availability` is the current recurring weekly Piercer Availability source of truth.
-It permits at most one interval for a piercer and weekday, and a missing row means unavailable for that weekday.
-The database rejects availability outside that weekday's open recurring Studio Hours.
-It also rejects shortening or closing a recurring Studio Hours row while saved recurring availability would conflict.
+It permits at most one row for a piercer and ISO weekday, repeats every week until changed, and supports explicit `studio` and `custom` modes.
+A missing row continues to mean unavailable for that weekday.
+
+**Same as Studio Hours** (`mode = studio`) stores null `starts_at` and `ends_at` values and dynamically follows that date's Effective Studio Hours.
+A Temporary Studio Schedule therefore changes this piercer's operational window without rewriting Recurring Piercer Availability, and a Studio closure makes the piercer unavailable.
+**Custom Hours** (`mode = custom`) stores one explicit increasing interval.
+The database requires it to fit within that weekday's open Recurring Studio Hours, while assignment additionally intersects it with Effective Studio Hours for the target date.
+The database rejects shortening or closing a recurring Studio Hours row only when a saved Custom Hours interval would conflict; Studio-mode rows follow the changed Studio window and do not block the edit.
+
 The Owner currently edits one weekday and piercer at a time from Studio.
+That editor can mark the weekday unavailable by deleting the row, select Same as Studio Hours, or select Custom Hours and enter explicit times.
+The full Configure Piercer Schedule workflow remains deferred.
 No qualifications, recurring availability, or Studio Exceptions are invented for existing data.
 
 ### Studio Exceptions
@@ -78,9 +90,10 @@ Anonymous execution is denied.
 
 `get_assignable_piercers(uuid[])` and `piercer_is_assignable(...)` evaluate the PostgreSQL server clock in `Asia/Manila`.
 The checked RPC delegates to `piercer_is_assignable`, which now consumes `get_effective_studio_hours` for the Manila date.
-They require an active piercer profile, open Effective Studio Hours, a matching recurring Piercer Availability interval, and a qualification for every selected active service.
-Both time intervals include opening and exclude closing.
-The runtime window is therefore `Effective Studio Hours INTERSECT Recurring Piercer Availability`; temporary Studio hours never rewrite stored piercer intervals.
+They require an active piercer profile, open Effective Studio Hours, a matching Recurring Piercer Availability row, and a qualification for every selected active service.
+Custom mode checks its stored interval in addition to Effective Studio Hours; Studio mode uses the Effective Studio Hours interval directly.
+Every checked interval includes opening and excludes closing.
+The runtime window is therefore `Effective Studio Hours INTERSECT Recurring Piercer Availability`; temporary Studio hours and exceptions never rewrite stored piercer rows.
 The underlying security-definer predicate is not directly executable by browser roles.
 `accept_new_service_waiver(...)` repeats this check immediately before it creates a signed Pending service transaction.
 The live scheduling check happens when that signed service transaction is established.
@@ -92,19 +105,34 @@ Product-only transactions do not require a piercer and are unaffected by Studio 
 
 Studio is an Owner-only route, and RLS limits scheduling mutations to Owners.
 Active Staff accounts may consume the checked assignable-piercer result in Dashboard but cannot mutate Studio configuration.
-`studioService.ts` loads configuration and writes individual recurring hours, availability, and exceptions.
+`studioService.ts` loads configuration and today's `get_effective_studio_hours` result, and writes individual recurring hours, atomic recurring configurations, atomic temporary configurations, availability, and exceptions.
 `studioQueries.ts` invalidates the authenticated Studio scope plus Dashboard and Settings queries after a Studio configuration mutation.
 `StudioConfiguration.tsx` presents the existing individual editors, and `StudioPage.tsx` composes the Owner-only workspace.
 Owner Overview currently treats recurring Studio Hours as ready only when all seven `studio_hours` rows exist and at least one is open.
 It separately reports an intentionally all-closed week and does not describe today's operational state.
 
-Successful temporary-schedule mutations use the existing authenticated Studio configuration query scope, which invalidates Studio configuration plus the existing Dashboard and Settings dependent scopes.
+Successful recurring and temporary configuration mutations use the existing authenticated Studio configuration query scope, which invalidates and refetches Studio configuration plus the existing Dashboard and Settings dependent scopes.
 Dashboard assignment and waiver acceptance respect temporary hours through the canonical backend call chain; no Dashboard, waiver, or Settings presentation changed.
+
+### Configure Studio Hours workflow and UI states
+
+`Configure hours` opens one Owner dialog with explicit `Recurring` and `Temporary` choices.
+Recurring means “Repeats every week until changed.” and has no date fields.
+Temporary means “Overrides recurring Studio Hours only for the selected dates.” and requires an inclusive valid date range.
+Both modes submit a complete seven-day schedule; open days receive the chosen interval and closed days receive null times.
+The dialog keeps persisted schedule data as TanStack Query server state and uses local state only for unsaved form values.
+It disables the complete form while saving, shows translated validation and persistence errors, and displays the refetched server result after success.
+
+The Studio Hours panel shows the backend-resolved source and window for today's Manila business date.
+React displays the returned `recurring`, `temporary`, or `exception` result and does not reproduce scheduling precedence.
+The panel separately identifies the active Temporary Studio Schedule, its inclusive range, and its recurring-resume date; future non-overlapping schedules are listed as upcoming, while expired schedules remain persisted but are not presented as active.
+An explicit temporary edit action opens the same dialog with the selected schedule and cannot switch into a recurring mutation.
+The daily rows remain labeled as recurring, and their individual edit actions only change that recurring weekday.
 
 ## Target Scheduling Model
 
-Studio precedence below is implemented in Phase 3.
-Piercer modes, temporary Piercer schedules, their resolver, and the new user interfaces remain planned.
+Studio precedence below is implemented in Phase 3, and recurring Piercer modes are implemented in Phase 5.
+Temporary Piercer schedules, the canonical Effective Piercer Availability resolver, and the bulk scheduling interface remain planned.
 
 ### Studio schedule layers
 
@@ -125,7 +153,7 @@ Studio Exception > Temporary Studio Schedule > Recurring Studio Hours
 ### Piercer schedule layers
 
 **Recurring Piercer Availability** is the piercer's permanent weekly default and repeats until changed.
-`piercer_availability` is expected to remain its source of truth because it already stores one interval per piercer and weekday.
+`piercer_availability` is its source of truth and stores at most one `studio` or `custom` row per piercer and weekday; no row means unavailable.
 
 **Temporary Piercer Schedule** is a date-bounded override of Recurring Piercer Availability.
 It must never overwrite or replace Recurring Piercer Availability.
@@ -138,7 +166,7 @@ Temporary Piercer Schedule > Recurring Piercer Availability
 ```
 
 **Same as Studio Hours** means a piercer dynamically follows Effective Studio Hours.
-Later persistence must represent this as a mode rather than permanently copying Studio times into piercer rows.
+Persistence represents this as `mode = studio` with null explicit times rather than permanently copying Studio times into piercer rows.
 Changes to Recurring Studio Hours, a Temporary Studio Schedule, or a Studio Exception must therefore be reflected dynamically for this mode.
 
 **Custom Hours** means a piercer has explicitly configured availability times.
@@ -159,17 +187,17 @@ All scheduling business logic must use `Asia/Manila`.
 | Target capability | Current classification | Evidence and later work |
 | --- | --- | --- |
 | Recurring Studio Hours | Already supported | `studio_hours` has one persistent row per weekday and the Owner can edit its weekly windows. |
-| Bulk recurring Studio Hours configuration | Not supported | The Studio UI saves one weekday at a time and has no atomic seven-day configuration action. |
-| Temporary Studio Schedule | Backend supported | Independent date ranges, seven weekday rows, atomic Owner-only mutation, and effective resolution exist; production configuration UI remains deferred. |
+| Bulk recurring Studio Hours configuration | Supported | Configure Hours saves all seven selected/open and unselected/closed rows through one Owner-only atomic RPC. |
+| Temporary Studio Schedule | Supported | The production Configure Hours dialog creates and explicitly edits date-bounded schedules through the existing atomic mutation. |
 | Studio Exception precedence | Supported | Exceptions override temporary and recurring hours; reduced exceptions validate against the base resolver. |
 | Effective Studio Hours resolution | Supported | `get_effective_studio_hours` returns the canonical interval and source and is consumed by assignment. |
-| Recurring Piercer Availability | Already supported | `piercer_availability` persists one weekly interval per piercer and weekday. |
-| Same as Studio Hours piercer mode | Not supported | No availability mode exists, and Studio times are currently stored explicitly in availability rows. |
-| Custom Hours piercer mode | Partially supported | Explicit weekly intervals exist, but they are not labeled as a mode and cannot participate in future layered resolution. |
+| Recurring Piercer Availability | Supported | `piercer_availability` persists one weekly `studio` or `custom` row per piercer and weekday; absence means unavailable. |
+| Same as Studio Hours piercer mode | Supported | Null-time `studio` rows dynamically use Effective Studio Hours during assignment. |
+| Custom Hours piercer mode | Supported | Explicit weekly intervals remain constrained by Recurring Studio Hours at configuration and Effective Studio Hours at assignment. |
 | Temporary Piercer Schedule | Not supported | There are no date-range piercer overrides, mutations, or UI. |
 | Effective Piercer Availability resolution | Not supported | No resolver applies temporary-over-recurring precedence or returns effective source and interval. |
-| Studio/piercer schedule intersection | Partially supported | `piercer_is_assignable` checks both current intervals at one instant, but it does not calculate a reusable effective intersection. |
-| Assignable-piercer integration | Studio integration supported | Dashboard and waiver acceptance reach the Effective Studio Hours resolver through `piercer_is_assignable`; Piercer Availability remains recurring-only. |
+| Studio/piercer schedule intersection | Operationally supported | `piercer_is_assignable` interprets both recurring modes at one instant, but Phase 7 still needs a reusable Effective Piercer Availability resolver. |
+| Assignable-piercer integration | Recurring modes supported | Dashboard and waiver acceptance reach Effective Studio Hours and mode-aware Recurring Piercer Availability through `piercer_is_assignable`. |
 | Overview readiness integration | Partially supported | Overview counts recurring `studio_hours` rows and open days, but cannot distinguish a configured schedule from today's temporary or exception-driven state. |
 | Owner permissions | Already supported | The Studio route is Owner-only and scheduling table mutations have Owner-only RLS policies. |
 | Staff operational consumption | Already supported | Active Staff can call the checked assignable-piercer RPC for Dashboard without configuration mutation rights. |
@@ -177,20 +205,20 @@ All scheduling business logic must use `Asia/Manila`.
 
 ## Deferred implementation
 
-Phase 3 does not add Configure Hours UI, Piercer availability modes, Temporary Piercer schedules, Effective Piercer Availability, Configure Piercer Schedule UI, Overview effective-state integration, or later full lifecycle E2E coverage.
+Phase 5 does not add Temporary Piercer schedules, the canonical Effective Piercer Availability resolver, the full Configure Piercer Schedule UI, Overview effective-state integration, or later full lifecycle E2E coverage.
 Historical transaction recovery and product-only behavior remain unchanged.
-`validate_piercer_availability` and `prevent_conflicting_studio_hours` still enforce only permanent recurring configuration relationships.
+`validate_piercer_availability` and `prevent_conflicting_studio_hours` enforce permanent recurring configuration relationships only for Custom Hours; Studio-mode rows have no explicit interval to validate or conflict.
 
-Phase 4 can consume `StudioConfiguration.recurringHours`, `StudioConfiguration.temporarySchedules`, and the generated Effective Studio Hours RPC contract.
-The existing Owner-only temporary configuration RPC is atomic; recurring edits still update one weekday under Owner RLS and do not yet have a bulk atomic mutation.
-Resolver source, open state, IDs, and exception type support future source/status presentation, while temporary date metadata supplies upcoming, active, expired, and recurring-resume context.
+Phase 4 consumes `StudioConfiguration.recurringHours`, `StudioConfiguration.temporarySchedules`, and the generated Effective Studio Hours RPC contract.
+The recurring and temporary bulk operations are separate atomic Owner-only RPCs; the older per-day recurring update remains available for maintenance.
+Resolver source, open state, IDs, and exception type drive today's presentation, while temporary date metadata supplies upcoming, active, expired, and recurring-resume context.
 
 ## Approved model discrepancy
 
 The approved `.model/piercing-corner-configure-hours.html` remains the interaction reference for future Configure Hours work.
 Its labels, selected working days, open/closed states, date fields, and schedule summaries are compatible with the persisted seven-day representation.
 Its browser-only state, current-week date limits, statements that recurring hours expire after the week, and current-week reset behavior conflict with the finalized plan and were not copied.
-The persistence layer supports independent inclusive temporary date ranges and indefinite recurring defaults; recurrence controls, date pickers, badges, summaries, editing actions, validation presentation, and responsive behavior remain Phase 4 UI concerns.
+The production UI keeps the model's useful date pickers, badges, summaries, working-day controls, editing actions, validation presentation, and responsive layout while applying the finalized persistence semantics.
 
 ## Boundary
 
