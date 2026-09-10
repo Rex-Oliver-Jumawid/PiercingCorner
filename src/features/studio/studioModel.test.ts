@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addCalendarDays, formatStudioDate, formatStudioTime, getManilaDate, getRelevantTemporarySchedules, mapTemporaryStudioSchedules, validateTimeRange } from './studioModel'
+import { addCalendarDays, formatStudioDate, formatStudioTime, getManilaDate, getRelevantTemporarySchedules, mapTemporaryPiercerSchedules, mapTemporaryStudioSchedules, validateTimeRange } from './studioModel'
 
 describe('Studio schedule model', () => {
   it('formats stored times without depending on the browser timezone', () => {
@@ -46,5 +46,25 @@ describe('Studio schedule model', () => {
     ], '2026-09-10')
     expect(result.active?.id).toBe('active')
     expect(result.upcoming.map((item) => item.id)).toEqual(['future'])
+  })
+
+  it('maps unavailable, Studio, and Custom temporary piercer states in weekday order', () => {
+    const schedules = [{
+      id: 'schedule-1', piercer_profile_id: 'piercer-1',
+      starts_on: '2026-09-17', ends_on: '2026-09-20', created_by: 'owner-1',
+      created_at: '2026-09-10T00:00:00Z', updated_at: '2026-09-10T00:00:00Z',
+    }]
+    const result = mapTemporaryPiercerSchedules(schedules, [
+      { schedule_id: 'schedule-1', weekday: 5, is_available: true, mode: 'custom', starts_at: '15:00:00', ends_at: '18:00:00' },
+      { schedule_id: 'other', weekday: 1, is_available: true, mode: 'studio', starts_at: null, ends_at: null },
+      { schedule_id: 'schedule-1', weekday: 2, is_available: false, mode: null, starts_at: null, ends_at: null },
+      { schedule_id: 'schedule-1', weekday: 4, is_available: true, mode: 'studio', starts_at: null, ends_at: null },
+    ])
+
+    expect(result[0].availability).toEqual([
+      expect.objectContaining({ weekday: 2, is_available: false, mode: null, starts_at: null, ends_at: null }),
+      expect.objectContaining({ weekday: 4, is_available: true, mode: 'studio', starts_at: null, ends_at: null }),
+      expect.objectContaining({ weekday: 5, is_available: true, mode: 'custom', starts_at: '15:00:00', ends_at: '18:00:00' }),
+    ])
   })
 })

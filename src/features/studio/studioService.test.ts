@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getSupabaseClient } from '../../lib/supabase/client'
 import type { Database } from '../../types/database'
-import { configureRecurringStudioHours, configureTemporaryStudioSchedule, getStudioConfiguration, saveAvailability } from './studioService'
+import { configureRecurringStudioHours, configureTemporaryPiercerSchedule, configureTemporaryStudioSchedule, getStudioConfiguration, saveAvailability } from './studioService'
 
 vi.mock('../../lib/supabase/client', () => ({ getSupabaseClient: vi.fn() }))
 const fetcher = vi.fn<typeof fetch>()
@@ -32,6 +32,19 @@ function responseFor(path: string) {
   if (path.endsWith('/piercer_availability')) {
     return [{ piercer_profile_id: 'piercer-1', weekday: 1, mode: 'studio', starts_at: null, ends_at: null }]
   }
+  if (path.endsWith('/piercer_temporary_schedules')) {
+    return [{
+      id: 'piercer-schedule-1', piercer_profile_id: 'piercer-1',
+      starts_on: '2026-09-17', ends_on: '2026-09-20', created_by: 'owner-1',
+      created_at: '2026-09-10T00:00:00Z', updated_at: '2026-09-10T00:00:00Z',
+    }]
+  }
+  if (path.endsWith('/piercer_temporary_availability')) {
+    return [
+      { schedule_id: 'piercer-schedule-1', weekday: 5, is_available: true, mode: 'custom', starts_at: '15:00:00', ends_at: '18:00:00' },
+      { schedule_id: 'piercer-schedule-1', weekday: 4, is_available: false, mode: null, starts_at: null, ends_at: null },
+    ]
+  }
   return []
 }
 
@@ -53,11 +66,72 @@ describe('Studio Supabase service boundary', () => {
     expect(configuration.availability).toEqual([
       { piercer_profile_id: 'piercer-1', weekday: 1, mode: 'studio', starts_at: null, ends_at: null },
     ])
+    expect(configuration.temporaryPiercerSchedules[0].availability).toEqual([
+      expect.objectContaining({ weekday: 4, is_available: false, mode: null }),
+      expect.objectContaining({ weekday: 5, mode: 'custom', starts_at: '15:00:00', ends_at: '18:00:00' }),
+    ])
     expect(fetcher.mock.calls.map(([input]) => new URL(String(input)).pathname)).toEqual(expect.arrayContaining([
       '/rest/v1/studio_hours',
       '/rest/v1/studio_temporary_schedules',
       '/rest/v1/studio_temporary_hours',
+      '/rest/v1/piercer_temporary_schedules',
+      '/rest/v1/piercer_temporary_availability',
     ]))
+  })
+
+  it('sends one normalized seven-day Temporary Piercer Schedule RPC payload including replacement ID', async () => {
+    fetcher.mockResolvedValueOnce(new Response(JSON.stringify('piercer-schedule-1'), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }))
+
+    await configureTemporaryPiercerSchedule({
+      id: 'piercer-schedule-1', piercerProfileId: 'piercer-1',
+      startsOn: '2026-09-17', endsOn: '2026-09-20',
+      availability: [
+        { weekday: 1, is_available: false, mode: 'custom', starts_at: '10:00', ends_at: '20:00' },
+        { weekday: 2, is_available: true, mode: 'studio', starts_at: '10:00', ends_at: '20:00' },
+        ...Array.from({ length: 5 }, (_, index) => ({
+          weekday: index + 3, is_available: true, mode: 'custom' as const,
+          starts_at: '12:00', ends_at: '18:00',
+        })),
+      ],
+    })
+
+    const [input, init] = fetcher.mock.calls[0]
+    expect(new URL(String(input)).pathname).toBe('/rest/v1/rpc/configure_temporary_piercer_schedule')
+    const body = JSON.parse(String(init?.body))
+    expect(body).toEqual(expect.objectContaining({
+      target_piercer_profile_id: 'piercer-1',
+      schedule_starts_on: '2026-09-17', schedule_ends_on: '2026-09-20',
+      target_schedule_id: 'piercer-schedule-1',
+    }))
+    expect(body.daily_availability[0]).toEqual({ weekday: 1, is_available: false, mode: null, starts_at: null, ends_at: null })
+    expect(body.daily_availability[1]).toEqual({ weekday: 2, is_available: true, mode: 'studio', starts_at: null, ends_at: null })
+    expect(body.daily_availability[2]).toEqual({ weekday: 3, is_available: true, mode: 'custom', starts_at: '12:00', ends_at: '18:00' })
+  })
+
+  it('translates Temporary Piercer overlap and validation failures safely', async () => {
+    const input = {
+      piercerProfileId: 'piercer-1', startsOn: '2026-09-17', endsOn: '2026-09-20',
+      availability: Array.from({ length: 7 }, (_, index) => ({
+        weekday: index + 1, is_available: false, mode: null, starts_at: null, ends_at: null,
+      })),
+    }
+    fetcher.mockResolvedValueOnce(new Response(JSON.stringify({ message: 'constraint details', code: '23P01' }), {
+      status: 409, headers: { 'Content-Type': 'application/json' },
+    }))
+    await expect(configureTemporaryPiercerSchedule(input)).rejects.toThrow('overlaps another temporary schedule for this piercer')
+
+    fetcher.mockResolvedValueOnce(new Response(JSON.stringify({ message: 'internal validation details', code: '23514' }), {
+      status: 400, headers: { 'Content-Type': 'application/json' },
+    }))
+    await expect(configureTemporaryPiercerSchedule(input)).rejects.toThrow('Check the piercer, temporary dates')
+
+    fetcher.mockResolvedValueOnce(new Response(JSON.stringify({ message: 'Owner access required', code: '42501' }), {
+      status: 403, headers: { 'Content-Type': 'application/json' },
+    }))
+    await expect(configureTemporaryPiercerSchedule(input)).rejects.toThrow('Owner access is required')
   })
 
   it('persists recurring Custom Hours with explicit times', async () => {

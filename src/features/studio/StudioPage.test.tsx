@@ -39,6 +39,7 @@ function studioConfiguration(overrides: Partial<StudioConfiguration> = {}): Stud
       { weekday: 7, is_open: false, opens_at: null, closes_at: null },
     ],
     temporarySchedules: [],
+    temporaryPiercerSchedules: [],
     effectiveToday: {
       schedule_date: '2026-09-10', weekday: 4, is_open: true,
       opens_at: '10:00:00', closes_at: '20:00:00', source: 'recurring',

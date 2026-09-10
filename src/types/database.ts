@@ -265,6 +265,86 @@ export type Database = {
           },
         ]
       }
+      piercer_temporary_availability: {
+        Row: {
+          ends_at: string | null
+          is_available: boolean
+          mode: string | null
+          schedule_id: string
+          starts_at: string | null
+          weekday: number
+        }
+        Insert: {
+          ends_at?: string | null
+          is_available: boolean
+          mode?: string | null
+          schedule_id: string
+          starts_at?: string | null
+          weekday: number
+        }
+        Update: {
+          ends_at?: string | null
+          is_available?: boolean
+          mode?: string | null
+          schedule_id?: string
+          starts_at?: string | null
+          weekday?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "piercer_temporary_availability_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "piercer_temporary_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      piercer_temporary_schedules: {
+        Row: {
+          created_at: string
+          created_by: string
+          ends_on: string
+          id: string
+          piercer_profile_id: string
+          starts_on: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string
+          ends_on: string
+          id?: string
+          piercer_profile_id: string
+          starts_on: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          ends_on?: string
+          id?: string
+          piercer_profile_id?: string
+          starts_on?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "piercer_temporary_schedules_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "staff_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "piercer_temporary_schedules_piercer_profile_id_fkey"
+            columns: ["piercer_profile_id"]
+            isOneToOne: false
+            referencedRelation: "piercer_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           active: boolean
@@ -874,6 +954,16 @@ export type Database = {
       configure_recurring_studio_hours: {
         Args: { daily_hours: Json }
         Returns: undefined
+      }
+      configure_temporary_piercer_schedule: {
+        Args: {
+          daily_availability: Json
+          schedule_ends_on: string
+          schedule_starts_on: string
+          target_piercer_profile_id: string
+          target_schedule_id?: string
+        }
+        Returns: string
       }
       configure_temporary_studio_schedule: {
         Args: {

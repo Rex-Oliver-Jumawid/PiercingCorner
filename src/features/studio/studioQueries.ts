@@ -31,6 +31,10 @@ export function useConfigureTemporaryStudioSchedule() {
   return useStudioMutation(service.configureTemporaryStudioSchedule)
 }
 
+export function useConfigureTemporaryPiercerSchedule() {
+  return useStudioMutation(service.configureTemporaryPiercerSchedule)
+}
+
 export function useConfigureRecurringStudioHours() {
   return useStudioMutation(service.configureRecurringStudioHours)
 }

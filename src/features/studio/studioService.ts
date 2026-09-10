@@ -1,6 +1,7 @@
 import { getSupabaseClient } from '../../lib/supabase/client'
 import type {
   ConfigureRecurringStudioHoursInput,
+  ConfigureTemporaryPiercerScheduleInput,
   ConfigureTemporaryStudioScheduleInput,
   EffectiveStudioHours,
   PiercerProfile,
@@ -8,15 +9,23 @@ import type {
   RecurringPiercerAvailabilityMode,
   StudioConfiguration,
   StudioException,
+  TemporaryPiercerAvailability,
 } from './studioModel'
-import { getManilaDate, mapTemporaryStudioSchedules } from './studioModel'
+import { getManilaDate, mapTemporaryPiercerSchedules, mapTemporaryStudioSchedules } from './studioModel'
 
 export async function getStudioConfiguration(signal: AbortSignal): Promise<StudioConfiguration> {
   const client = getSupabaseClient()
-  const [hours, temporarySchedules, temporaryHours, effectiveToday, profiles, qualifications, availability, exceptions, services, stations] = await Promise.all([
+  const [hours, temporarySchedules, temporaryHours, temporaryPiercerSchedules, temporaryPiercerAvailability, effectiveToday, profiles, qualifications, availability, exceptions, services, stations] = await Promise.all([
     client.from('studio_hours').select('*').order('weekday').abortSignal(signal),
     client.from('studio_temporary_schedules').select('*').order('starts_on').order('id').abortSignal(signal),
     client.from('studio_temporary_hours').select('*').order('schedule_id').order('weekday').abortSignal(signal),
+    client.from('piercer_temporary_schedules').select('*').order('starts_on').order('id').abortSignal(signal),
+    client.from('piercer_temporary_availability')
+      .select('*')
+      .order('schedule_id')
+      .order('weekday')
+      .abortSignal(signal)
+      .overrideTypes<TemporaryPiercerAvailability[]>(),
     client.rpc('get_effective_studio_hours', { target_date: getManilaDate() }).abortSignal(signal),
     client.from('piercer_profiles').select('id, display_name, active, default_station_id').order('active', { ascending: false }).order('display_name').order('id').abortSignal(signal),
     client.from('piercer_service_qualifications').select('piercer_profile_id, service_id').abortSignal(signal),
@@ -29,16 +38,46 @@ export async function getStudioConfiguration(signal: AbortSignal): Promise<Studi
     client.from('services').select('id, name, active').order('active', { ascending: false }).order('name').abortSignal(signal),
     client.from('stations').select('id, name, active').order('active', { ascending: false }).order('name').abortSignal(signal),
   ])
-  if ([hours, temporarySchedules, temporaryHours, effectiveToday, profiles, qualifications, availability, exceptions, services, stations].some((result) => result.error)) {
+  if ([hours, temporarySchedules, temporaryHours, temporaryPiercerSchedules, temporaryPiercerAvailability, effectiveToday, profiles, qualifications, availability, exceptions, services, stations].some((result) => result.error)) {
     throw new Error('Unable to load Studio configuration. Please try again.')
   }
   return {
     recurringHours: hours.data ?? [], profiles: profiles.data ?? [], qualifications: qualifications.data ?? [],
     temporarySchedules: mapTemporaryStudioSchedules(temporarySchedules.data ?? [], temporaryHours.data ?? []),
+    temporaryPiercerSchedules: mapTemporaryPiercerSchedules(temporaryPiercerSchedules.data ?? [], temporaryPiercerAvailability.data ?? []),
     effectiveToday: (effectiveToday.data?.[0] as EffectiveStudioHours | undefined) ?? null,
     availability: availability.data ?? [], exceptions: exceptions.data ?? [],
     services: services.data ?? [], stations: stations.data ?? [],
   }
+}
+
+export async function configureTemporaryPiercerSchedule(input: ConfigureTemporaryPiercerScheduleInput) {
+  const { data, error } = await getSupabaseClient().rpc('configure_temporary_piercer_schedule', {
+    target_piercer_profile_id: input.piercerProfileId,
+    schedule_starts_on: input.startsOn,
+    schedule_ends_on: input.endsOn,
+    daily_availability: input.availability.map((entry) => ({
+      weekday: entry.weekday,
+      is_available: entry.is_available,
+      mode: entry.is_available ? entry.mode : null,
+      starts_at: entry.is_available && entry.mode === 'custom' ? entry.starts_at : null,
+      ends_at: entry.is_available && entry.mode === 'custom' ? entry.ends_at : null,
+    })),
+    ...(input.id ? { target_schedule_id: input.id } : {}),
+  })
+  if (error) {
+    if (error.code === '42501') {
+      throw new Error('Owner access is required to configure Temporary Piercer Availability.')
+    }
+    if (error.code === '23P01') {
+      throw new Error('That date range overlaps another temporary schedule for this piercer.')
+    }
+    if (error.code === '22023' || error.code === '23514') {
+      throw new Error('Check the piercer, temporary dates, and all seven availability states.')
+    }
+    throw new Error('Could not save the Temporary Piercer Schedule. Please try again.')
+  }
+  return data
 }
 
 export async function configureRecurringStudioHours(input: ConfigureRecurringStudioHoursInput) {

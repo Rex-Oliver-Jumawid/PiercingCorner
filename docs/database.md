@@ -39,6 +39,8 @@ it leaves no sample accounts or business records in the local database.
 | `studio_temporary_hours` | The seven explicit open or closed weekday rows belonging to each Temporary Studio Schedule. |
 | `piercer_service_qualifications` | Services each Studio piercer may be assigned to perform. |
 | `piercer_availability` | At most one persistent Recurring Piercer Availability row per piercer and weekday, in `studio` or `custom` mode; absence means unavailable. |
+| `piercer_temporary_schedules` | Inclusive date-bounded Temporary Piercer Schedule metadata; ranges may not overlap for the same piercer. |
+| `piercer_temporary_availability` | Seven explicit unavailable, `studio`, or `custom` weekday states for each Temporary Piercer Schedule. |
 | `studio_exceptions` | One dated Studio Exception per date: an all-day closure or a reduced-hours override of the applicable base window. |
 | `transactions` | Operational Dashboard transaction with immutable client snapshot and first completion timestamp; not an appointment or draft sale. |
 | `transaction_items` | Service/product lines with name and price snapshots. |
@@ -79,7 +81,7 @@ Calendar, or Overview pages.
 | Clients | Read/create/update | Read/create/update |
 | Services / products | Read/create/update and deactivate | Read active catalog rows only |
 | Piercer profiles / stations | Read/create/update and deactivate | Read active rows for Dashboard assignment |
-| Recurring/temporary Studio hours, qualifications, availability, exceptions | Read; individual recurring updates plus atomic Owner-only recurring and temporary configuration | Read only for checked operational use |
+| Recurring/temporary Studio and Piercer scheduling, qualifications, availability, exceptions | Read; individual recurring updates plus atomic Owner-only recurring and temporary configuration | Read only for checked operational use |
 | Transactions | Read/create and edit open operational records | Same, through Dashboard only |
 | Transaction items | Read; add/edit/remove on open transactions | Same, through Dashboard only |
 | Payments | Read/record on open transactions | Read/record through Dashboard |
@@ -227,6 +229,35 @@ Custom mode requires the current time to fall inside both its stored interval an
 Studio mode requires only the Effective Studio Hours interval, so Temporary Studio Schedules are followed automatically and Studio Exceptions can close or narrow the operational window without changing recurring piercer data.
 This is the minimum Phase 5 operational integration; the reusable Effective Piercer Availability resolver remains deferred to Phase 7.
 
+### Temporary Piercer Schedule persistence
+
+`piercer_temporary_schedules` owns one piercer's inclusive `starts_on`/`ends_on` range, with UUID primary key, restrictive foreign keys to `piercer_profiles` and the creating `staff_accounts` row, shared timestamps, and `starts_on <= ends_on` validation.
+Its GiST exclusion constraint combines `piercer_profile_id =` with inclusive `daterange(...) &&`, rejecting every same-piercer calendar overlap while permitting identical ranges for different piercers.
+The `(piercer_profile_id, starts_on, ends_on)` index supports piercer/date lookup in addition to the exclusion index.
+
+`piercer_temporary_availability` belongs to a schedule through a cascading foreign key and uses `(schedule_id, weekday)` as its primary key, limiting each ISO weekday `1` through `7` to one row.
+Its check constraint permits exactly three representations:
+
+| State | Stored representation |
+| --- | --- |
+| Unavailable | `is_available = false`; mode and both times null. |
+| Same as Studio Hours | `is_available = true`, `mode = studio`; both times null. |
+| Custom Hours | `is_available = true`, `mode = custom`; non-null `starts_at < ends_at`. |
+
+The Owner-only `configure_temporary_piercer_schedule(uuid, date, date, jsonb, uuid default null)` RPC verifies the piercer, range, and an array containing each weekday exactly once before writing.
+Creation inserts parent metadata and all seven states in one transaction.
+Replacement locks a target belonging to the supplied piercer, updates its dates, deletes its prior child rows, and inserts the complete replacement set; any error rolls back the whole function call and restores the original data.
+It cannot use a target ID to change another piercer's schedule.
+
+Active application accounts have RLS-filtered read access to both tables.
+Mutation policies are Owner-only defense in depth, while direct authenticated INSERT, UPDATE, and DELETE privileges are revoked so browser clients must use the complete-schedule RPC.
+The RPC independently requires an active Owner and is the only authenticated mutation boundary.
+
+Temporary configuration never reads, updates, or deletes `piercer_availability`.
+Expired rows remain stored, and recurring fallback will occur through date evaluation without cleanup or reset jobs.
+Phase 6 validates Custom Hours as an increasing interval but deliberately does not reproduce Effective Studio Hours precedence; Phase 7 will centrally resolve `Temporary Piercer Schedule > Recurring Piercer Availability` and then intersect the result with Effective Studio Hours.
+Until that resolver is implemented, Temporary Piercer schedules do not affect `piercer_is_assignable`, `get_assignable_piercers`, or operational assignment.
+
 `accept_new_service_waiver(...)` rechecks those rules immediately before creating
 the signed Pending service transaction. This check occurs once at creation so a
 persisted transaction can finish payment recovery after hours. A transaction-item
@@ -238,7 +269,7 @@ Owners manage Studio configuration under RLS and the checked recurring and tempo
 Neither `studio_hours` nor `piercer_availability` is rewritten by temporary configuration or resolution.
 Dashboard and waiver acceptance now consume Effective Studio Hours through the predicate; Overview readiness still reads recurring configuration only.
 The Owner Studio page now exposes the Phase 4 Configure Hours workflow and reads today's resolver result for source presentation.
-No temporary Piercer schedule tables, Effective Piercer Availability resolver, or Configure Piercer Schedule UI exist yet.
+Temporary Piercer Schedule persistence exists, but no Effective Piercer Availability resolver or Configure Piercer Schedule UI exists yet.
 Calendar remains a placeholder and transactions remain operational records rather than appointments.
 See [Studio scheduling](studio-scheduling.md) for implemented behavior and deferred phases.
 
@@ -249,6 +280,7 @@ docker exec -i supabase_db_PiercingCorner psql -U postgres -d postgres -v ON_ERR
 docker exec -i supabase_db_PiercingCorner psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/effective_studio_hours.sql
 docker exec -i supabase_db_PiercingCorner psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/configure_recurring_studio_hours.sql
 docker exec -i supabase_db_PiercingCorner psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/recurring_piercer_availability.sql
+docker exec -i supabase_db_PiercingCorner psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/temporary_piercer_availability.sql
 ```
 
 All focused suites roll back their fixtures; the canonical `supabase/tests/rls.sql` suite remains required.

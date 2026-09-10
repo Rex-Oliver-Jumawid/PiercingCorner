@@ -92,9 +92,21 @@ from (
     ('studio_hours', 'select'), ('studio_hours', 'update'),
     ('piercer_service_qualifications', 'select'), ('piercer_service_qualifications', 'insert'), ('piercer_service_qualifications', 'update'), ('piercer_service_qualifications', 'delete'),
     ('piercer_availability', 'select'), ('piercer_availability', 'insert'), ('piercer_availability', 'update'), ('piercer_availability', 'delete'),
+    ('piercer_temporary_schedules', 'select'),
+    ('piercer_temporary_availability', 'select'),
     ('studio_exceptions', 'select'), ('studio_exceptions', 'insert'), ('studio_exceptions', 'update'), ('studio_exceptions', 'delete'),
     ('business_profile', 'select'), ('business_profile', 'update')
 ) as required(table_name, privilege);
+
+select pg_temp.assert_true(
+  not has_table_privilege('authenticated', 'public.piercer_temporary_schedules', 'insert')
+  and not has_table_privilege('authenticated', 'public.piercer_temporary_schedules', 'update')
+  and not has_table_privilege('authenticated', 'public.piercer_temporary_schedules', 'delete')
+  and not has_table_privilege('authenticated', 'public.piercer_temporary_availability', 'insert')
+  and not has_table_privilege('authenticated', 'public.piercer_temporary_availability', 'update')
+  and not has_table_privilege('authenticated', 'public.piercer_temporary_availability', 'delete'),
+  'Temporary Piercer Schedule writes must remain RPC-only'
+);
 
 set local role authenticated;
 select set_config('request.jwt.claim.role', 'authenticated', true);

@@ -48,6 +48,36 @@ export interface ConfigureRecurringStudioHoursInput {
   hours: RecurringStudioHour[]
 }
 
+export type TemporaryPiercerAvailabilityMode = 'studio' | 'custom'
+
+export interface TemporaryPiercerAvailability {
+  schedule_id: string
+  weekday: number
+  is_available: boolean
+  mode: TemporaryPiercerAvailabilityMode | null
+  starts_at: string | null
+  ends_at: string | null
+}
+
+export interface TemporaryPiercerSchedule {
+  id: string
+  piercer_profile_id: string
+  starts_on: string
+  ends_on: string
+  created_by: string
+  created_at: string
+  updated_at: string
+  availability: TemporaryPiercerAvailability[]
+}
+
+export interface ConfigureTemporaryPiercerScheduleInput {
+  id?: string
+  piercerProfileId: string
+  startsOn: string
+  endsOn: string
+  availability: Array<Omit<TemporaryPiercerAvailability, 'schedule_id'>>
+}
+
 export interface EffectiveStudioHours {
   schedule_date: string
   weekday: number
@@ -106,6 +136,7 @@ export interface StudioException {
 export interface StudioConfiguration {
   recurringHours: RecurringStudioHour[]
   temporarySchedules: TemporaryStudioSchedule[]
+  temporaryPiercerSchedules: TemporaryPiercerSchedule[]
   effectiveToday: EffectiveStudioHours | null
   profiles: PiercerProfile[]
   qualifications: PiercerQualification[]
@@ -154,6 +185,18 @@ export function mapTemporaryStudioSchedules(
     ...schedule,
     hours: hours
       .filter((hour) => hour.schedule_id === schedule.id)
+      .sort((left, right) => left.weekday - right.weekday),
+  }))
+}
+
+export function mapTemporaryPiercerSchedules(
+  schedules: Array<Omit<TemporaryPiercerSchedule, 'availability'>>,
+  availability: TemporaryPiercerAvailability[],
+): TemporaryPiercerSchedule[] {
+  return schedules.map((schedule) => ({
+    ...schedule,
+    availability: availability
+      .filter((entry) => entry.schedule_id === schedule.id)
       .sort((left, right) => left.weekday - right.weekday),
   }))
 }
