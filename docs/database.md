@@ -34,10 +34,10 @@ it leaves no sample accounts or business records in the local database.
 | `clients` | Minimal walk-in-friendly client record. |
 | `services` / `products` | Deactivatable catalogs with exact `numeric(12,2)` prices. |
 | `piercer_profiles` / `stations` | Deactivatable Studio resources assigned to service transactions. |
-| `studio_hours` | The seven recurring Manila operating-day windows. |
+| `studio_hours` | The seven persistent Recurring Studio Hours windows, one for each Manila weekday. |
 | `piercer_service_qualifications` | Services each Studio piercer may be assigned to perform. |
-| `piercer_availability` | One recurring availability interval per piercer and weekday. |
-| `studio_exceptions` | Dated all-day closures or reduced-hours overrides. |
+| `piercer_availability` | One persistent Recurring Piercer Availability interval per piercer and weekday. |
+| `studio_exceptions` | One dated Studio Exception per date: an all-day closure or a reduced-hours override of the recurring window. |
 | `transactions` | Operational Dashboard transaction with immutable client snapshot and first completion timestamp; not an appointment or draft sale. |
 | `transaction_items` | Service/product lines with name and price snapshots. |
 | `payments` | Recorded payment facts; never gateway credentials. |
@@ -145,12 +145,18 @@ They do not expose administrative credentials to the browser. Phase 4 deliberate
 supports one full payment; the table's broader multiple-payment domain remains for a
 later reviewed workflow.
 
-## Studio scheduling
+## Current Studio scheduling
 
 `get_assignable_piercers(uuid[])` returns active profiles qualified for every
 selected active service only when the PostgreSQL server clock falls within the
 Manila Studio Hours, the profile's recurring availability, and any applicable
 dated exception. It includes an active default station when one exists.
+
+`piercer_is_assignable(uuid, uuid[], timestamptz)` is the underlying checked
+predicate used by that RPC and by the signed service-transaction boundary.
+It currently joins Recurring Studio Hours and Recurring Piercer Availability
+directly, then applies the dated Studio Exception for the Manila date.
+It is not an Effective Studio Hours or Effective Piercer Availability resolver.
 
 `accept_new_service_waiver(...)` rechecks those rules immediately before creating
 the signed Pending service transaction. This check occurs once at creation so a
@@ -162,6 +168,12 @@ Owners manage all Studio configuration under RLS. Availability must fit within
 open Studio Hours, conflicting hour reductions are rejected, and reduced-hours
 exceptions must narrow the normal window. Calendar remains a retained placeholder;
 transactions are still operational records rather than appointments.
+
+No temporary Studio or piercer schedule tables, availability-mode columns, or
+effective-schedule resolver functions exist yet. Their planned semantics are
+defined in [Studio scheduling](studio-scheduling.md); that document is canonical
+for scheduling behavior and clearly distinguishes planned behavior from this
+implemented database contract.
 
 ## Phase 2 client read interfaces
 
